@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "azureclient",
+  "version": "${version}",
+  "name": "Azure Personal Client",
+  "description": "Configurable client HUD and settings menu for Azure Personal.",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.azurepersonal.client.AzureClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "azureclient.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.11",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "java": ">=17"
+  }
+}

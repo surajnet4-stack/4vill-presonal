@@ -1,0 +1,3 @@
+v1	named	intermediary
+FIELD	dev/azurepersonal/client/mixin/LightmapTextureManagerMixin	Lnet/minecraft/client/texture/NativeImage;	image	field_4133
+FIELD	dev/azurepersonal/client/mixin/LightmapTextureManagerMixin	Lnet/minecraft/client/texture/NativeImageBackedTexture;	texture	field_4138

@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.azurepersonal.client.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "CameraMixin",
+    "EntityMixin",
+    "GameRendererMixin",
+    "InventoryScreenMixin",
+    "InGameHudMixin",
+    "LightmapTextureManagerMixin",
+    "MinecraftClientMixin",
+    "ScreenAccessor",
+    "TitleScreenMixin",
+    "WorldRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

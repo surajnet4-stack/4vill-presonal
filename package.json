@@ -1,0 +1,30 @@
+{
+  "name": "azure-personal",
+  "version": "1.0.0",
+  "description": "Azure Personal Minecraft launcher for Windows",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:client-mod": "client-mod\\gradlew.bat -p client-mod build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.2 -Pyarn_mappings=1.20.2+build.4 -Pfabric_version=0.91.6+1.20.2 build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.3 -Pyarn_mappings=1.20.3+build.1 -Pfabric_version=0.91.1+1.20.3 build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.4 -Pyarn_mappings=1.20.4+build.3 -Pfabric_version=0.97.2+1.20.4 build",
+    "test": "node --test test/path-safety.test.js",
+    "build:setup": "npm run build:client-mod && electron-builder --config electron-builder.config.js --win nsis --x64",
+    "build": "npm run build:setup",
+    "release:windows": "npm run build:client-mod && electron-builder --config electron-builder.config.js --win nsis --x64 --publish always"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "electron-updater": "^6.3.9",
+    "minecraft-launcher-core": "^3.18.2",
+    "prismarine-auth": "^3.0.0"
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^25.1.8",
+    "electron-packager": "^17.1.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

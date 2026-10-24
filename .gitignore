@@ -1,0 +1,7 @@
+node_modules/
+dist/
+client-mod/.gradle/
+client-mod/build/classes/
+client-mod/build/resources/
+client-mod/build/tmp/
+client-mod/build/libs/*-sources.jar

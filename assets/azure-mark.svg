@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="azure" x1="12" y1="5" x2="53" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b7d2ff"/>
+      <stop offset=".48" stop-color="#78a9ff"/>
+      <stop offset="1" stop-color="#3975d5"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="8" y1="9" x2="56" y2="55" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#263347"/>
+      <stop offset="1" stop-color="#151b26"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="17" fill="url(#tile)" stroke="#fff" stroke-opacity=".12"/>
+  <path d="m13 46 14-29h9L21.5 46H13Zm18.5-9 4.4-9L51 46H25l4-9h2.5Z" fill="url(#azure)"/>
+  <path d="m27 17 8 16h-9l-8 13h-5l14-29Z" fill="#d6e5ff" fill-opacity=".58"/>
+</svg>
