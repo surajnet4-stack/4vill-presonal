@@ -12,8 +12,6 @@ jobs:
   release:
     runs-on: windows-latest
     env:
-      AZURE_GITHUB_OWNER: ${{ github.repository_owner }}
-      AZURE_GITHUB_REPO: ${{ github.event.repository.name }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out release source
@@ -33,6 +31,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Set app version from release tag
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Release tag must use vX.Y.Z format; got $env:GITHUB_REF_NAME"
+          }
+          npm version $version --no-git-tag-version
 
       - name: Build and publish installer and update metadata
         run: npm run release:windows

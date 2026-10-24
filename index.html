@@ -527,7 +527,8 @@
     .installed-copy { min-width: 0; flex: 1; }
     .installed-copy strong { display: block; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
     .installed-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
-    .installed-row .secondary-button { min-height: 27px; padding: 0 9px; color: var(--danger); font-size: 8px; }
+    .installed-row .secondary-button { min-height: 27px; padding: 0 9px; font-size: 8px; }
+    .installed-row .installed-remove { color: var(--danger); }
     .empty-state { grid-column: 1 / -1; padding: 22px 12px; border: 1px dashed var(--stroke-strong); border-radius: 10px; color: var(--muted); text-align: center; font-size: 10px; line-height: 1.5; }
 
     .status-line {
@@ -926,8 +927,9 @@
             <h2>Installed in this instance</h2>
             <button class="secondary-button" id="explore-refresh-installed" type="button">Refresh</button>
           </div>
+          <p class="explore-notice">Shows Explore installs plus local mod, resource-pack, and shader-pack files found in this instance. Only Explore-managed downloads can be removed here.</p>
           <div class="installed-list" id="explore-installed">
-            <div class="empty-state">No launcher-managed content installed in this instance yet.</div>
+            <div class="empty-state">No mods, packs, or Explore installs found in this instance.</div>
           </div>
         </section>
 
@@ -1173,6 +1175,14 @@
       current.accountId = current.authMode === 'microsoft' ? selectedAccountId : '';
       current.ram = Number(ramInput.value);
       current.name = profileNameInput.value.trim();
+      const activeProfile = launchProfiles.find((profile) => profile.id === activeProfileId);
+      if (activeProfile && catalogLoaded) {
+        Object.assign(activeProfile, {
+          gameVersion: current.gameVersion,
+          loaderType: current.loaderType,
+          loaderVersion: current.loaderVersion
+        });
+      }
       savePersistentState();
     }
 
@@ -1490,7 +1500,7 @@
         const select = document.createElement('button');
         select.type = 'button';
         select.className = 'saved-profile-select';
-        select.textContent = `${profile.name} · ${profile.gameVersion} ${profile.loaderType}`;
+        select.textContent = `${profile.name} · ${profile.gameVersion} ${profile.loaderType}${profile.loaderVersion ? ` ${profile.loaderVersion}` : ''}`;
         select.addEventListener('click', async () => {
           await activateProfile(profile);
         });
@@ -1865,7 +1875,7 @@
         if (items.length === 0) {
           const empty = document.createElement('div');
           empty.className = 'empty-state';
-          empty.textContent = 'No launcher-managed content installed in this instance yet.';
+          empty.textContent = 'No mods, packs, or Explore installs found in this instance.';
           exploreInstalled.append(empty);
           return;
         }
@@ -1877,25 +1887,48 @@
           const title = document.createElement('strong');
           title.textContent = item.title;
           const details = document.createElement('span');
-          details.textContent = `${item.provider} · ${item.type} · ${item.files.length} file${item.files.length === 1 ? '' : 's'}`;
+          const fileCount = item.files.length;
+          details.textContent = `${item.provider} · ${item.type} · ${fileCount} file${fileCount === 1 ? '' : 's'}${item.managed ? '' : ' · detected on disk'}`;
           copy.append(title, details);
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'secondary-button';
-          remove.textContent = 'Remove';
-          remove.addEventListener('click', async () => {
-            if (!window.confirm(`Remove ${item.title} and its unmodified managed files from this instance?`)) return;
-            remove.disabled = true;
+          const actions = document.createElement('div');
+          actions.className = 'loader-tools';
+          const openFolder = document.createElement('button');
+          openFolder.type = 'button';
+          openFolder.className = 'secondary-button';
+          openFolder.textContent = 'Open folder';
+          openFolder.addEventListener('click', async () => {
+            const folderType = item.type === 'mod' ? 'mods'
+              : item.type === 'resourcepack' ? 'resourcepacks'
+                : item.type === 'shaderpack' ? 'shaderpacks'
+                  : 'root';
             try {
-              await window.launcher.removeInstalledContent(currentInstanceReference(), item.key);
-              setStatus(`${item.title} removed from this instance.`, 'success');
-              await refreshInstalledContent();
+              await window.launcher.openModsFolder(currentInstanceReference(), folderType);
             } catch (error) {
-              setStatus(error.message || 'Could not remove installed content.', 'error');
-              remove.disabled = false;
+              setStatus(error.message || 'Could not open the content folder.', 'error');
             }
           });
-          row.append(copy, remove);
+          actions.append(openFolder);
+          if (item.managed) {
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'secondary-button';
+            remove.classList.add('installed-remove');
+            remove.textContent = 'Remove';
+            remove.addEventListener('click', async () => {
+              if (!window.confirm(`Remove ${item.title} and its unmodified managed files from this instance?`)) return;
+              remove.disabled = true;
+              try {
+                await window.launcher.removeInstalledContent(currentInstanceReference(), item.key);
+                setStatus(`${item.title} removed from this instance.`, 'success');
+                await refreshInstalledContent();
+              } catch (error) {
+                setStatus(error.message || 'Could not remove installed content.', 'error');
+                remove.disabled = false;
+              }
+            });
+            actions.append(remove);
+          }
+          row.append(copy, actions);
           exploreInstalled.append(row);
         }
       } catch (error) {

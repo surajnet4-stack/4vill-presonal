@@ -1,6 +1,3 @@
-const owner = process.env.AZURE_GITHUB_OWNER;
-const repo = process.env.AZURE_GITHUB_REPO;
-
 module.exports = {
   appId: 'dev.azurepersonal.launcher',
   productName: 'Azure Personal',
@@ -32,12 +29,10 @@ module.exports = {
     shortcutName: 'Azure Personal',
     runAfterFinish: true
   },
-  ...(owner && repo ? {
-    publish: [{
-      provider: 'github',
-      owner,
-      repo,
-      releaseType: 'release'
-    }]
-  } : {})
+  publish: [{
+    provider: 'github',
+    owner: 'surajnet4-stack',
+    repo: '4vill-presonal',
+    releaseType: 'release'
+  }]
 };

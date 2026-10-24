@@ -428,7 +428,7 @@ async function getExploreProjectFile(options) {
   }
   const response = await fetch(
     `${MODRINTH_API_URL}/project/${encodeURIComponent(options.projectId)}/version?${params}`,
-    { headers: { 'User-Agent': 'Azure-Personal/1.0 (Minecraft launcher)' }, signal: createRequestSignal(20000, signal) }
+    { headers: { 'User-Agent': 'Azure-Personal/1.0 (Minecraft launcher)' }, signal: AbortSignal.timeout(20000) }
   );
   if (!response.ok) throw new Error(`Could not load compatible Modrinth versions (HTTP ${response.status}).`);
   const versions = await response.json();
@@ -688,7 +688,63 @@ async function listInstalledContent(event, instance) {
   assertMainWindowEvent(event, 'Installed content');
   validateInstanceReference(instance);
   const instanceDirectory = getInstanceDirectory(getDataPaths(), instance);
-  return readManagedContent(instanceDirectory);
+  await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
+  const managedItems = await readManagedContent(instanceDirectory);
+  const knownFiles = new Set();
+  for (const item of managedItems) {
+    for (const file of item.files) {
+      const normalizedPath = file.path.replace(/\//g, path.sep).toLowerCase();
+      knownFiles.add(`${item.type}:${normalizedPath}`);
+      if (item.type === 'modpack') {
+        for (const folderType of ['mod', 'resourcepack', 'shaderpack']) {
+          const folderName = `${getContentDirectory(instanceDirectory, folderType).split(path.sep).pop()}${path.sep}`;
+          if (normalizedPath.startsWith(folderName.toLowerCase())) {
+            knownFiles.add(`${folderType}:${normalizedPath.slice(folderName.length)}`);
+          }
+        }
+      }
+    }
+  }
+
+  const discoveredItems = [];
+  for (const type of ['mod', 'resourcepack', 'shaderpack']) {
+    const folder = getContentDirectory(instanceDirectory, type);
+    try {
+      const folderStats = await fs.lstat(folder);
+      if (!folderStats.isDirectory() || folderStats.isSymbolicLink()) {
+        throw new Error(`The instance ${type} folder is not a safe directory.`);
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+
+    const entries = await fs.readdir(folder, { withFileTypes: true });
+    for (const entry of entries) {
+      const isSupportedFile = type === 'mod'
+        ? entry.isFile() && path.extname(entry.name).toLowerCase() === '.jar'
+        : entry.isFile()
+          ? ['.zip', '.jar'].includes(path.extname(entry.name).toLowerCase())
+          : entry.isDirectory();
+      if (!isSupportedFile) continue;
+      const relativePath = entry.name;
+      const fileKey = `${type}:${relativePath.toLowerCase()}`;
+      if (knownFiles.has(fileKey)) continue;
+      discoveredItems.push({
+        key: '',
+        provider: 'Local',
+        type,
+        title: entry.name,
+        files: [{ path: relativePath }],
+        managed: false
+      });
+    }
+  }
+
+  return [
+    ...managedItems.map((item) => ({ ...item, managed: true })),
+    ...discoveredItems
+  ];
 }
 
 async function removeInstalledContent(event, instance, key) {
@@ -1395,7 +1451,7 @@ ipcMain.handle('explore:open-project', async (event, provider, slug) => {
 
 ipcMain.handle('instance:open-mods', async (event, instance, folderType) => {
   assertMainWindowEvent(event, 'Mods folder');
-  if (folderType === 'instance') {
+  if (['instance', 'root', 'mods', 'resourcepacks', 'shaderpacks'].includes(folderType)) {
     if (!instance || typeof instance.id !== 'string' ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(instance.id)) {
       throw new Error('Select or save a launch instance before opening its mods folder.');
@@ -1416,9 +1472,10 @@ ipcMain.handle('instance:open-mods', async (event, instance, folderType) => {
       .join('-')
       .replace(/[^A-Za-z0-9._-]/g, '_')
     : '';
+  const folderName = folderType === 'instance' ? 'mods' : folderType === 'root' ? '' : folderType;
   const folderPath = folderType === 'shared'
     ? paths.modsSource
-    : path.join(paths.instances, instance && instance.legacy ? legacyId : instance.id, 'mods');
+    : path.join(paths.instances, instance && instance.legacy ? legacyId : instance.id, folderName);
   await fs.mkdir(folderPath, { recursive: true });
   const error = await shell.openPath(folderPath);
   if (error) throw new Error(`Could not open the mods folder: ${error}`);
