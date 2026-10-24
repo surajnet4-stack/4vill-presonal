@@ -39,7 +39,13 @@ jobs:
           if ($version -notmatch '^\d+\.\d+\.\d+$') {
             throw "Release tag must use vX.Y.Z format; got $env:GITHUB_REF_NAME"
           }
-          npm version $version --no-git-tag-version
+          $packageVersion = (Get-Content package.json | ConvertFrom-Json).version
+          if ($packageVersion -ne $version) {
+            npm version $version --no-git-tag-version
+            if ($LASTEXITCODE -ne 0) {
+              throw "Could not set package version to $version"
+            }
+          }
 
       - name: Build and publish installer and update metadata
         run: npm run release:windows
