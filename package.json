@@ -1,6 +1,6 @@
 {
   "name": "azure-personal",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Azure Personal Minecraft launcher for Windows",
   "main": "main.js",
   "private": true,

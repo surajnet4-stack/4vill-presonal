@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('launcher', {
   chooseLocalSkin: (username) => ipcRenderer.invoke('skin:local:choose', username),
   uploadSkin: (accountId, variant) => ipcRenderer.invoke('skin:upload', accountId, variant),
   stop: () => ipcRenderer.invoke('launcher:stop'),
+  getUpdateStatus: () => ipcRenderer.invoke('updater:status'),
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
   importOptifineProfile: () => ipcRenderer.invoke('optifine:import'),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   close: () => ipcRenderer.invoke('window:close'),
@@ -22,5 +26,10 @@ contextBridge.exposeInMainWorld('launcher', {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('launcher:status', listener);
     return () => ipcRenderer.removeListener('launcher:status', listener);
+  },
+  onUpdateState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('updater:state', listener);
+    return () => ipcRenderer.removeListener('updater:state', listener);
   }
 });

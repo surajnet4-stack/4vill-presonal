@@ -49,6 +49,12 @@ let launchInProgress = false;
 let activeLaunch = null;
 let gameProcessStarted = false;
 let quitTimer;
+let updaterConfigured = false;
+const updaterState = {
+  status: 'idle',
+  version: '',
+  message: 'Check for launcher updates.'
+};
 let minecraftManifestCache;
 let forgeMetadataCache;
 const loaderMetadataCache = new Map();
@@ -108,6 +114,71 @@ ipcMain.handle('window:minimize', (event) => {
 
 ipcMain.handle('window:close', (event) => {
   if (mainWindow && event.sender === mainWindow.webContents) mainWindow.close();
+});
+
+function publishUpdaterState(status, message, version = updaterState.version) {
+  updaterState.status = status;
+  updaterState.message = message;
+  updaterState.version = version;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updater:state', { ...updaterState });
+  }
+}
+
+ipcMain.handle('updater:status', (event) => {
+  assertMainWindowEvent(event, 'Update status');
+  return { ...updaterState, configured: updaterConfigured, packaged: app.isPackaged };
+});
+
+ipcMain.handle('updater:check', async (event) => {
+  assertMainWindowEvent(event, 'Update check');
+  if (!app.isPackaged) {
+    publishUpdaterState('unavailable', 'Updates are available in the installed launcher.');
+    return { ...updaterState, configured: false, packaged: false };
+  }
+  if (!updaterConfigured) {
+    publishUpdaterState('unavailable', 'Automatic updates are not configured in this installation.');
+    return { ...updaterState, configured: false, packaged: true };
+  }
+  if (['checking', 'downloading'].includes(updaterState.status)) return { ...updaterState };
+  if (updaterState.status === 'downloaded') return { ...updaterState };
+
+  publishUpdaterState('checking', 'Checking for launcher updates...');
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ...updaterState };
+  } catch (error) {
+    publishUpdaterState('error', `Could not check for updates: ${error.message}`);
+    throw error;
+  }
+});
+
+ipcMain.handle('updater:download', async (event) => {
+  assertMainWindowEvent(event, 'Update download');
+  if (!updaterConfigured || !app.isPackaged) {
+    throw new Error('Automatic updates are not available in this installation.');
+  }
+  if (updaterState.status === 'downloading') return { ...updaterState };
+  if (updaterState.status !== 'available') {
+    throw new Error('There is no available update to download. Check for updates first.');
+  }
+  publishUpdaterState('downloading', `Downloading version ${updaterState.version}...`);
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ...updaterState };
+  } catch (error) {
+    publishUpdaterState('error', `Could not download the update: ${error.message}`);
+    throw error;
+  }
+});
+
+ipcMain.handle('updater:install', (event) => {
+  assertMainWindowEvent(event, 'Update installation');
+  if (!updaterConfigured || updaterState.status !== 'downloaded') {
+    throw new Error('The update must finish downloading before it can be installed.');
+  }
+  autoUpdater.quitAndInstall(false, true);
+  return { installed: true };
 });
 
 function getDataPaths() {
@@ -1947,63 +2018,50 @@ function configureAutoUpdates() {
   if (!app.isPackaged) return;
   const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
   if (!fsSync.existsSync(updateConfigPath)) {
-    sendStatus('Automatic updates are not configured yet; install future setup releases manually.', 'warning');
+    publishUpdaterState('unavailable', 'Automatic updates are not configured in this installation.');
     return;
   }
 
+  updaterConfigured = true;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.on('checking-for-update', () => {
-    sendStatus('Checking for launcher updates...');
+    publishUpdaterState('checking', 'Checking for launcher updates...');
   });
-  autoUpdater.on('update-available', async (info) => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Azure Personal update available',
-        message: `Version ${info.version} is ready to download.`,
-        detail: 'Your Minecraft instances and saved profiles will remain untouched.',
-        buttons: ['Download update', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      });
-      if (result.response === 0) await autoUpdater.downloadUpdate();
-      else sendStatus(`Version ${info.version} is available when you are ready.`, 'info');
-    } catch (error) {
-      console.error('[Azure Personal] Could not start update download:', error);
-      sendStatus(`Could not start update download: ${error.message}`, 'error');
-    }
+  autoUpdater.on('update-available', (info) => {
+    publishUpdaterState(
+      'available',
+      `Version ${info.version} is available to download.`,
+      info.version
+    );
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    publishUpdaterState(
+      'up-to-date',
+      `You are using the latest version${info.version ? ` (${info.version})` : ''}.`,
+      info.version || ''
+    );
   });
   autoUpdater.on('download-progress', (progress) => {
-    sendStatus(`Downloading launcher update: ${Math.round(progress.percent)}%`, 'busy');
+    publishUpdaterState(
+      'downloading',
+      `Downloading launcher update: ${Math.round(progress.percent)}%`
+    );
   });
-  autoUpdater.on('update-downloaded', async (info) => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    try {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update ready to install',
-        message: `Azure Personal ${info.version} has downloaded.`,
-        detail: 'Restart the launcher to finish installing the update.',
-        buttons: ['Restart and install', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      });
-      if (result.response === 0) autoUpdater.quitAndInstall(false, true);
-      else sendStatus('Update downloaded; restart Azure Personal later to install it.', 'success');
-    } catch (error) {
-      console.error('[Azure Personal] Could not install downloaded update:', error);
-      sendStatus(`Update downloaded, but could not start installation: ${error.message}`, 'error');
-    }
+  autoUpdater.on('update-downloaded', (info) => {
+    publishUpdaterState(
+      'downloaded',
+      `Version ${info.version} has downloaded and is ready to install.`,
+      info.version
+    );
   });
   autoUpdater.on('error', (error) => {
     console.error('[Azure Personal] Update check failed:', error);
-    sendStatus(`Update check failed: ${error.message}`, 'warning');
+    publishUpdaterState('error', `Update failed: ${error.message}`);
   });
   autoUpdater.checkForUpdates().catch((error) => {
     console.error('[Azure Personal] Could not check for updates:', error);
-    sendStatus(`Could not check for updates: ${error.message}`, 'warning');
+    publishUpdaterState('error', `Could not check for updates: ${error.message}`);
   });
 }
 

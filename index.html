@@ -427,6 +427,11 @@
     .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); gap: 11px; }
     .settings-card { padding: 16px; }
     .settings-card > p { margin: 0 0 16px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+    .update-card { grid-column: 1 / -1; }
+    .update-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .update-status { min-width: 180px; flex: 1; margin: 0 !important; }
+    .update-status[data-kind="success"] { color: var(--accent); }
+    .update-status[data-kind="warning"] { color: var(--danger); }
     .section-divider { height: 1px; margin: 15px 0; border: 0; background: var(--stroke); }
     .account-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid var(--stroke); border-radius: 9px; background: var(--bg); }
     .account-tab { min-height: 34px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: pointer; font-size: 9px; font-weight: 600; transition: color .16s ease, background .16s ease; }
@@ -955,6 +960,16 @@
               <div class="quick-row"><span>Content provider</span><strong>Modrinth</strong></div>
               <div class="quick-row"><span>CurseForge</span><strong>Not available inside</strong></div>
             </section>
+            <section class="settings-card update-card" aria-labelledby="updates-heading">
+              <h2 id="updates-heading">Launcher updates</h2>
+              <p>Check for a newer version, then download and install it when you’re ready. Your Minecraft instances and saved profiles are kept separately.</p>
+              <div class="update-actions">
+                <p class="update-status" id="update-status" role="status" aria-live="polite">Checking update status…</p>
+                <button class="secondary-button" id="check-updates-button" type="button">Check for updates</button>
+                <button class="secondary-button" id="download-update-button" type="button" hidden>Download update</button>
+                <button class="secondary-button" id="install-update-button" type="button" hidden>Restart and install</button>
+              </div>
+            </section>
             <section class="settings-card">
               <h2>Appearance</h2>
               <p>Choose an accent that feels right. Your theme is saved on this device.</p>
@@ -1036,6 +1051,10 @@
     const exploreCompatibility = document.getElementById('explore-compatibility');
     const statusLine = document.getElementById('status');
     const statusText = document.getElementById('status-text');
+    const updateStatus = document.getElementById('update-status');
+    const checkUpdatesButton = document.getElementById('check-updates-button');
+    const downloadUpdateButton = document.getElementById('download-update-button');
+    const installUpdateButton = document.getElementById('install-update-button');
     const accountStatus = document.getElementById('account-status');
     const accountName = document.getElementById('account-name');
     const profileCardName = document.getElementById('profile-card-name');
@@ -2051,10 +2070,59 @@
       cancelLaunchButton.textContent = 'STOP DOWNLOAD';
     }
 
+    function renderUpdateState(state) {
+      if (!state || typeof state.message !== 'string') return;
+      updateStatus.textContent = state.message;
+      updateStatus.dataset.kind = ['error', 'unavailable'].includes(state.status)
+        ? 'warning'
+        : state.status === 'available' || state.status === 'downloaded' || state.status === 'up-to-date'
+          ? 'success'
+          : state.status === 'checking' || state.status === 'downloading'
+            ? 'busy'
+            : 'info';
+      checkUpdatesButton.disabled = ['checking', 'downloading'].includes(state.status);
+      downloadUpdateButton.hidden = state.status !== 'available';
+      downloadUpdateButton.disabled = state.status === 'downloading';
+      installUpdateButton.hidden = state.status !== 'downloaded';
+    }
+
+    checkUpdatesButton.addEventListener('click', async () => {
+      checkUpdatesButton.disabled = true;
+      updateStatus.textContent = 'Checking for launcher updates...';
+      try {
+        renderUpdateState(await window.launcher.checkForUpdates());
+      } catch (error) {
+        renderUpdateState({ status: 'error', message: error.message || 'Could not check for updates.' });
+      }
+    });
+
+    downloadUpdateButton.addEventListener('click', async () => {
+      downloadUpdateButton.disabled = true;
+      try {
+        renderUpdateState(await window.launcher.downloadUpdate());
+      } catch (error) {
+        renderUpdateState({ status: 'error', message: error.message || 'Could not download the update.' });
+      }
+    });
+
+    installUpdateButton.addEventListener('click', async () => {
+      installUpdateButton.disabled = true;
+      try {
+        await window.launcher.installUpdate();
+      } catch (error) {
+        renderUpdateState({ status: 'error', message: error.message || 'Could not install the update.' });
+        installUpdateButton.disabled = false;
+      }
+    });
+
     if (window.launcher) {
       window.launcher.onStatus(({ message, kind }) => {
         if (['success', 'error', 'cancelled'].includes(kind)) resetLaunchControls();
         setStatus(message, isLaunching && kind === 'info' ? 'busy' : kind);
+      });
+      window.launcher.onUpdateState(renderUpdateState);
+      window.launcher.getUpdateStatus().then(renderUpdateState).catch((error) => {
+        renderUpdateState({ status: 'error', message: error.message || 'Could not load update status.' });
       });
     }
 
