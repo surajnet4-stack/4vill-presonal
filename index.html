@@ -209,7 +209,24 @@
     .nav-item[data-page="cosmetics"] span { font-size: 7px; letter-spacing: 0; }
     .nav-item svg { width: 19px; height: 19px; }
     .sidebar-spacer { flex: 1; }
-    .build-label { margin-bottom: 3px; color: var(--subtle); font-size: 9px; }
+    .sidebar-update {
+      display: grid;
+      width: 60px;
+      min-height: 48px;
+      place-items: center;
+      gap: 3px;
+      padding: 5px 3px;
+      border: 1px solid color-mix(in srgb, var(--accent) 23%, transparent);
+      border-radius: 10px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+    .sidebar-update:hover { background: color-mix(in srgb, var(--accent) 21%, transparent); transform: translateY(-1px); }
+    .sidebar-update svg { width: 16px; height: 16px; }
+    .sidebar-update span { font-size: 8px; font-weight: 750; letter-spacing: .07em; }
+    .build-label { margin: 0 0 1px; color: var(--subtle); font-size: 9px; }
 
     .content {
       min-width: 0;
@@ -409,8 +426,7 @@
     .info-card { min-height: 110px; padding: 13px 14px; }
     .info-card p { margin: 0; }
     .player-preview { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-    .player-skin { width: 52px; height: 68px; flex: none; object-fit: contain; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
-    .player-skin.is-local-skin { image-rendering: pixelated; }
+    .player-skin { width: 52px; height: 68px; flex: none; object-fit: contain; image-rendering: pixelated; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
     .skin-placeholder { display: grid; width: 52px; height: 68px; flex: none; place-content: center; justify-items: center; gap: 2px; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
     .skin-placeholder span { display: block; background: #9a704c; image-rendering: pixelated; }
     .skin-placeholder .skin-head { width: 20px; height: 20px; border: 3px solid #61442f; background: #c99a6d; }
@@ -527,6 +543,8 @@
     .explore-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 1px 9px; }
     .explore-section-heading h2 { margin: 0; }
     .explore-section-heading span { color: var(--muted); font-size: 9px; }
+    .explore-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 11px 0; }
+    .explore-pagination span { min-width: 90px; color: var(--muted); text-align: center; font-size: 9px; }
     .installed-list { display: grid; gap: 7px; }
     .installed-row { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--surface-raised); }
     .installed-copy { min-width: 0; flex: 1; }
@@ -663,7 +681,11 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="currentColor" stroke-width="1.7"/><path d="m19.4 15 .1.1a1.8 1.8 0 1 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3.1 1.3v.2a1.8 1.8 0 1 1-3.6 0v-.2a1.8 1.8 0 0 0-3.1-1.3l-.1.1a1.8 1.8 0 1 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-1.3-3.1h-.2a1.8 1.8 0 1 1 0-3.6h.2a1.8 1.8 0 0 0 1.3-3.1l-.1-.1a1.8 1.8 0 1 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3.1-1.3v-.2a1.8 1.8 0 1 1 3.6 0v.2a1.8 1.8 0 0 0 3.1 1.3l.1-.1a1.8 1.8 0 1 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 1.3 3.1h.2a1.8 1.8 0 1 1 0 3.6h-.2a1.8 1.8 0 0 0-1.3 3.1Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
           <span>SETTINGS</span>
         </button>
-        <span class="build-label">v1.0.0</span>
+        <button class="sidebar-update" id="sidebar-update-button" type="button" title="Check launcher updates" aria-label="Open launcher updates">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>UPDATE</span>
+        </button>
+        <span class="build-label">v1.0.4</span>
       </nav>
 
       <main class="content">
@@ -760,7 +782,7 @@
               <h2>Your session</h2>
               <div class="player-preview">
                 <div class="skin-placeholder" id="player-skin-placeholder" aria-hidden="true"><span class="skin-head"></span><span class="skin-body"></span><span class="skin-legs"></span></div>
-                <img class="player-skin" id="player-skin" alt="" referrerpolicy="no-referrer" hidden>
+                <canvas class="player-skin" id="player-skin" width="64" height="128" role="img" aria-label="Minecraft player avatar" hidden></canvas>
                 <div class="player-preview-copy">
                   <strong id="player-name">Local profile</strong>
                   <span id="player-skin-status">Choose an account to preview its skin.</span>
@@ -918,7 +940,7 @@
             </div>
           </div>
           <p class="explore-notice">
-            Modrinth is available inside Azure Personal. CurseForge is not available inside this client.
+            Modrinth is available inside Azure Personal. CurseForge is not available inside this client. Modpacks install into their own saved instance without Azure’s built-in mods.
           </p>
           <p class="explore-notice" id="explore-status" role="status" aria-live="polite" hidden></p>
           <div class="explore-section-heading">
@@ -927,6 +949,19 @@
           </div>
           <div class="explore-results" id="explore-results" aria-live="polite">
             <div class="empty-state">Choose a category and search to browse projects.</div>
+          </div>
+          <div class="explore-pagination">
+            <button class="secondary-button" id="explore-previous-page" type="button" disabled>Previous</button>
+            <span id="explore-page-label">Page 1</span>
+            <button class="secondary-button" id="explore-next-page" type="button" disabled>Next</button>
+          </div>
+          <div class="explore-section-heading">
+            <h2>Mods in this instance</h2>
+            <button class="secondary-button" id="refresh-instance-mods" type="button">Refresh</button>
+          </div>
+          <p class="explore-notice">Toggle individual mod JARs on or off for this instance. Changes apply the next time Minecraft launches.</p>
+          <div class="installed-list" id="instance-mods">
+            <div class="empty-state">Open Explore to inspect this instance’s mods.</div>
           </div>
           <div class="explore-section-heading">
             <h2>Installed in this instance</h2>
@@ -1044,6 +1079,10 @@
     const exploreSearchButton = document.getElementById('explore-search-button');
     const exploreResults = document.getElementById('explore-results');
     const exploreInstalled = document.getElementById('explore-installed');
+    const instanceMods = document.getElementById('instance-mods');
+    const explorePreviousPage = document.getElementById('explore-previous-page');
+    const exploreNextPage = document.getElementById('explore-next-page');
+    const explorePageLabel = document.getElementById('explore-page-label');
     const exploreStatus = document.getElementById('explore-status');
     const exploreResultCount = document.getElementById('explore-result-count');
     const exploreResultsHeading = document.getElementById('explore-results-heading');
@@ -1074,6 +1113,8 @@
     let cancelRequested = false;
     let loaderRequestSequence = 0;
     let exploreSearchSequence = 0;
+    let explorePage = 0;
+    let exploreTotal = 0;
     let skinRequestSequence = 0;
     let skinRefreshTimer;
     let accounts = readStored('4vill.accounts', []);
@@ -1109,6 +1150,7 @@
       loaderVersion: '0.15.11',
       instanceId: crypto.randomUUID(),
       legacyInstance: false,
+      builtInMods: true,
       ram: 2,
       name: ''
     };
@@ -1120,6 +1162,7 @@
     if (!['local', 'microsoft'].includes(current.authMode)) current.authMode = 'local';
     if (!/^\d+\.\d+(?:\.\d+)?$/.test(current.gameVersion)) current.gameVersion = '1.20.1';
     if (!['vanilla', 'fabric', 'forge', 'optifine'].includes(current.loaderType)) current.loaderType = 'fabric';
+    if (typeof current.builtInMods !== 'boolean') current.builtInMods = true;
     if (typeof current.instanceId !== 'string' ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(current.instanceId)) {
       current.instanceId = crypto.randomUUID();
@@ -1161,11 +1204,17 @@
       if (item.dataset.page === 'explore') {
         updateExploreInstanceLabel();
         refreshInstalledContent();
+        refreshInstanceMods();
         runExploreSearch();
       }
     }));
     document.getElementById('account-shortcut').addEventListener('click', () => navigate('profiles'));
     document.getElementById('profile-shortcut').addEventListener('click', () => navigate('profiles'));
+    document.getElementById('sidebar-update-button').addEventListener('click', () => {
+      navigate('settings');
+      document.getElementById('updates-heading').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!checkUpdatesButton.disabled) checkUpdatesButton.click();
+    });
 
     function readStored(key, fallback) {
       try {
@@ -1199,7 +1248,8 @@
         Object.assign(activeProfile, {
           gameVersion: current.gameVersion,
           loaderType: current.loaderType,
-          loaderVersion: current.loaderVersion
+          loaderVersion: current.loaderVersion,
+          builtInMods: current.builtInMods !== false
         });
       }
       savePersistentState();
@@ -1248,26 +1298,54 @@
             : 'No local skin selected yet. Choose a PNG in Profiles.';
           return;
         }
-        playerSkin.onload = () => {
+        const skinImage = new Image();
+        skinImage.onload = () => {
           if (requestId === skinRequestSequence) {
+            drawPlayerAvatar(skinImage);
             playerSkin.hidden = false;
             playerSkinPlaceholder.hidden = true;
           }
         };
-        playerSkin.onerror = () => {
+        skinImage.onerror = () => {
           if (requestId !== skinRequestSequence) return;
           playerSkin.hidden = true;
           playerSkinPlaceholder.hidden = false;
           playerSkinStatus.textContent = 'Skin preview is temporarily unavailable.';
         };
-        playerSkin.classList.toggle('is-local-skin', Boolean(preview.local));
-        playerSkin.src = preview.skinUrl;
+        skinImage.src = preview.skinUrl;
         playerSkinStatus.textContent = preview.local
           ? 'Local skin preview · saved for this nickname'
-          : 'Minecraft Java skin';
+          : 'Minecraft player model';
       } catch (error) {
         if (requestId !== skinRequestSequence) return;
         playerSkinStatus.textContent = error.message || 'Could not load the skin preview.';
+      }
+    }
+
+    function drawPlayerAvatar(skinImage) {
+      const context = playerSkin.getContext('2d');
+      context.clearRect(0, 0, playerSkin.width, playerSkin.height);
+      context.imageSmoothingEnabled = false;
+      const drawFace = (sourceX, sourceY, sourceWidth, sourceHeight, targetX, targetY, targetWidth, targetHeight) => {
+        context.drawImage(skinImage, sourceX, sourceY, sourceWidth, sourceHeight,
+          targetX, targetY, targetWidth, targetHeight);
+      };
+      drawFace(8, 8, 8, 8, 16, 0, 32, 32);
+      const modernSkin = skinImage.naturalWidth >= 64 && skinImage.naturalHeight >= 64;
+      if (modernSkin) {
+        drawFace(40, 8, 8, 8, 16, 0, 32, 32);
+      }
+      drawFace(20, 20, 8, 12, 16, 32, 32, 48);
+      drawFace(44, 20, 4, 12, 0, 32, 16, 48);
+      drawFace(modernSkin ? 36 : 44, modernSkin ? 52 : 20, 4, 12, 48, 32, 16, 48);
+      drawFace(4, 20, 4, 12, 16, 80, 16, 48);
+      drawFace(modernSkin ? 20 : 4, modernSkin ? 52 : 20, 4, 12, 32, 80, 16, 48);
+      if (modernSkin) {
+        drawFace(20, 36, 8, 12, 16, 32, 32, 48);
+        drawFace(44, 36, 4, 12, 0, 32, 16, 48);
+        drawFace(52, 52, 4, 12, 48, 32, 16, 48);
+        drawFace(4, 36, 4, 12, 16, 80, 16, 48);
+        drawFace(4, 52, 4, 12, 32, 80, 16, 48);
       }
     }
 
@@ -1378,14 +1456,17 @@
       if (requestId !== loaderRequestSequence) return;
 
       const versions = currentLoaderVersions();
-      const prefer = preferredVersion || current.loaderVersion ||
-        (loader === 'fabric' && current.gameVersion === '1.20.1' && catalog.fabric.includes('0.15.11')
-          ? '0.15.11'
-          : '');
+      const prefer = typeof preferredVersion === 'string'
+        ? preferredVersion
+        : current.loaderVersion || '';
+      const fallbackVersion = loader === 'fabric' && current.gameVersion === '1.20.1' &&
+        catalog.fabric.includes('0.15.11')
+        ? '0.15.11'
+        : versions[0] && (typeof versions[0] === 'string' ? versions[0] : versions[0].value) || '';
       const placeholder = loader === 'optifine'
         ? 'Import an OptiFine profile'
         : versions.length ? '' : 'No compatible versions found';
-      setOptions(loaderVersionSelect, versions, prefer, placeholder);
+      setOptions(loaderVersionSelect, versions, prefer || fallbackVersion, placeholder);
       loaderVersionSelect.disabled = versions.length === 0;
       current.loaderVersion = loaderVersionSelect.value || '';
 
@@ -1448,17 +1529,20 @@
         updateExploreInstanceLabel();
         runExploreSearch();
         refreshInstalledContent();
+        refreshInstanceMods();
       }
     });
 
     loaderTypeSelect.addEventListener('change', () => {
       current.loaderType = loaderTypeSelect.value;
+      current.loaderVersion = '';
       renderLoaderVersions('');
       syncCurrentFromControls();
       if (document.getElementById('page-explore').classList.contains('active')) {
         updateExploreInstanceLabel();
         runExploreSearch();
         refreshInstalledContent();
+        refreshInstanceMods();
       }
     });
     loaderVersionSelect.addEventListener('change', () => {
@@ -1468,6 +1552,7 @@
         updateExploreInstanceLabel();
         runExploreSearch();
         refreshInstalledContent();
+        refreshInstanceMods();
       }
     });
 
@@ -1545,7 +1630,8 @@
         ...current,
         ...profile,
         instanceId: profile.instanceId || profile.id,
-        legacyInstance: profile.legacyInstance === true
+        legacyInstance: profile.legacyInstance === true,
+        builtInMods: profile.builtInMods !== false
       };
       selectedAccountId = profile.accountId || '';
       usernameInput.value = profile.username || '';
@@ -1623,22 +1709,21 @@
           ? 'Local skin preview · saved for this nickname'
           : 'Skin updated on your Minecraft Java profile.';
         playerSkin.hidden = true;
-        playerSkin.classList.toggle('is-local-skin', Boolean(preview.local));
-        playerSkin.onload = () => {
+        const skinImage = new Image();
+        skinImage.onload = () => {
           if (requestId === skinRequestSequence) {
+            drawPlayerAvatar(skinImage);
             playerSkin.hidden = false;
             playerSkinPlaceholder.hidden = true;
           }
         };
-        playerSkin.onerror = () => {
+        skinImage.onerror = () => {
           if (requestId !== skinRequestSequence) return;
           playerSkin.hidden = true;
           playerSkinPlaceholder.hidden = false;
           playerSkinStatus.textContent = 'Skin updated, but its preview is temporarily unavailable.';
         };
-        playerSkin.src = preview.local
-          ? preview.skinUrl
-          : `${preview.skinUrl}&updated=${Date.now()}`;
+        skinImage.src = preview.skinUrl;
         setStatus(preview.local ? 'Local skin saved for this nickname.' : 'Minecraft skin updated successfully.', 'success');
       } catch (error) {
         setStatus(error.message || 'Could not upload the Minecraft skin.', 'error');
@@ -1703,6 +1788,7 @@
         gameVersion: gameVersionSelect.value,
         loaderType: loaderTypeSelect.value,
         loaderVersion: loaderVersionSelect.value,
+        builtInMods: current.builtInMods !== false,
         ram: Number(ramInput.value)
       };
       launchProfiles.push(profile);
@@ -1771,9 +1857,17 @@
       }).format(downloads);
     }
 
-    function renderExploreResults(projects) {
+    function renderExploreResults(projects, total) {
       exploreResults.replaceChildren();
-      exploreResultCount.textContent = `${projects.length} project${projects.length === 1 ? '' : 's'}`;
+      exploreTotal = total;
+      const firstResult = explorePage * 20 + 1;
+      const lastResult = explorePage * 20 + projects.length;
+      exploreResultCount.textContent = total
+        ? `${firstResult}–${lastResult} of ${formatDownloads(total)}`
+        : `${projects.length} projects`;
+      explorePageLabel.textContent = `Page ${explorePage + 1}`;
+      explorePreviousPage.disabled = explorePage === 0;
+      exploreNextPage.disabled = (explorePage + 1) * 20 >= total;
       if (projects.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
@@ -1854,19 +1948,22 @@
       loading.textContent = 'Searching Modrinth…';
       exploreResults.append(loading);
       exploreSearchButton.disabled = true;
+      explorePreviousPage.disabled = true;
+      exploreNextPage.disabled = true;
       exploreResultsHeading.textContent = `Browse ${exploreTypeSelect.options[exploreTypeSelect.selectedIndex].text}`;
       try {
-        const projects = await window.launcher.searchExplore({
+        const result = await window.launcher.searchExplore({
           provider,
           type,
           query: exploreQueryInput.value,
           sort: exploreSortSelect.value,
+          offset: explorePage * 20,
           instance,
           gameVersion: instance.gameVersion,
           loaderType: instance.loaderType
         });
         if (requestId !== exploreSearchSequence) return;
-        renderExploreResults(projects);
+        renderExploreResults(result.projects, result.total);
         exploreResults.dataset.loaded = 'true';
       } catch (error) {
         if (requestId !== exploreSearchSequence) return;
@@ -1877,7 +1974,68 @@
         exploreResultCount.textContent = '';
         setStatus(error.message || 'Explore search failed.', 'error');
       } finally {
-        if (requestId === exploreSearchSequence) exploreSearchButton.disabled = false;
+        if (requestId === exploreSearchSequence) {
+          exploreSearchButton.disabled = false;
+          explorePreviousPage.disabled = explorePage === 0;
+          exploreNextPage.disabled = (explorePage + 1) * 20 >= exploreTotal;
+        }
+      }
+    }
+
+    async function refreshInstanceMods() {
+      if (!window.launcher) return;
+      instanceMods.replaceChildren();
+      const loading = document.createElement('div');
+      loading.className = 'empty-state';
+      loading.textContent = 'Loading instance mods…';
+      instanceMods.append(loading);
+      try {
+        const mods = await window.launcher.getInstanceMods(currentInstanceReference());
+        instanceMods.replaceChildren();
+        if (mods.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-state';
+          empty.textContent = 'No mod JARs found in this instance.';
+          instanceMods.append(empty);
+          return;
+        }
+        for (const mod of mods) {
+          const row = document.createElement('div');
+          row.className = 'installed-row';
+          const copy = document.createElement('div');
+          copy.className = 'installed-copy';
+          const name = document.createElement('strong');
+          name.textContent = mod.fileName;
+          const status = document.createElement('span');
+          status.textContent = mod.enabled ? 'Enabled · active on next launch' : 'Disabled · ignored by Minecraft';
+          copy.append(name, status);
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'secondary-button';
+          toggle.textContent = mod.enabled ? 'Disable' : 'Enable';
+          toggle.addEventListener('click', async () => {
+            toggle.disabled = true;
+            try {
+              await window.launcher.setInstanceModEnabled(
+                currentInstanceReference(),
+                mod.fileName,
+                !mod.enabled
+              );
+              setStatus(`${mod.fileName} ${mod.enabled ? 'disabled' : 'enabled'} for this instance.`, 'success');
+              await refreshInstanceMods();
+            } catch (error) {
+              setStatus(error.message || `Could not change ${mod.fileName}.`, 'error');
+              toggle.disabled = false;
+            }
+          });
+          row.append(copy, toggle);
+          instanceMods.append(row);
+        }
+      } catch (error) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = error.message || 'Could not load instance mods.';
+        instanceMods.replaceChildren(empty);
       }
     }
 
@@ -1940,6 +2098,7 @@
                 await window.launcher.removeInstalledContent(currentInstanceReference(), item.key);
                 setStatus(`${item.title} removed from this instance.`, 'success');
                 await refreshInstalledContent();
+                await refreshInstanceMods();
               } catch (error) {
                 setStatus(error.message || 'Could not remove installed content.', 'error');
                 remove.disabled = false;
@@ -1963,7 +2122,9 @@
       button.disabled = true;
       const originalLabel = button.textContent;
       button.textContent = 'Installing…';
-      setStatus(`Installing ${project.title} into ${current.name || 'this instance'}…`, 'busy');
+      setStatus(project.type === 'modpack'
+        ? `Installing ${project.title} as a separate instance…`
+        : `Installing ${project.title} into ${current.name || 'this instance'}…`, 'busy');
       try {
         const result = await window.launcher.installExploreProject({
           provider: project.provider,
@@ -1975,27 +2136,34 @@
           loaderType: loaderTypeSelect.value
         });
         if (result.instance) {
-          current.gameVersion = result.instance.gameVersion;
-          current.loaderType = result.instance.loaderType;
-          current.loaderVersion = result.instance.loaderVersion;
-          loaderTypeSelect.value = result.instance.loaderType;
-          await refreshCatalog(result.instance.gameVersion, result.instance.loaderVersion);
-          loaderTypeSelect.value = result.instance.loaderType;
-          current.loaderVersion = loaderVersionSelect.value || '';
-          const activeProfile = launchProfiles.find((profile) => profile.id === activeProfileId);
-          if (activeProfile) Object.assign(activeProfile, {
-            gameVersion: current.gameVersion,
-            loaderType: current.loaderType,
-            loaderVersion: current.loaderVersion
-          });
-          syncCurrentFromControls();
+          const packProfile = {
+            id: crypto.randomUUID(),
+            instanceId: result.instance.id,
+            legacyInstance: false,
+            name: result.instance.name,
+            authMode: current.authMode,
+            username: current.username,
+            accountId: current.authMode === 'microsoft' ? selectedAccountId : '',
+            gameVersion: result.instance.gameVersion,
+            loaderType: result.instance.loaderType,
+            loaderVersion: result.instance.loaderVersion,
+            ram: Number(ramInput.value),
+            builtInMods: false
+          };
+          launchProfiles.push(packProfile);
+          savePersistentState();
+          renderSavedProfiles();
+          await activateProfile(packProfile);
         }
         updateExploreInstanceLabel();
         const fileCount = result.installedFileCount
           ? ` (${result.installedFileCount} files)`
           : '';
-        setStatus(`${project.title} installed${fileCount}.`, 'success');
+        setStatus(result.instance
+          ? `${project.title} installed as a new instance${fileCount}. Built-in mods are disabled for this pack.`
+          : `${project.title} installed${fileCount}.`, 'success');
         await refreshInstalledContent();
+        if (!result.instance && project.type === 'mod') await refreshInstanceMods();
       } catch (error) {
         setStatus(error.message || `Could not install ${project.title}.`, 'error');
       } finally {
@@ -2004,16 +2172,37 @@
       }
     }
 
-    exploreSearchButton.addEventListener('click', runExploreSearch);
+    exploreSearchButton.addEventListener('click', () => {
+      explorePage = 0;
+      runExploreSearch();
+    });
     exploreQueryInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') runExploreSearch();
+      if (event.key === 'Enter') {
+        explorePage = 0;
+        runExploreSearch();
+      }
     });
     exploreTypeSelect.addEventListener('change', () => {
+      explorePage = 0;
       exploreResults.dataset.loaded = '';
       runExploreSearch();
     });
-    exploreSortSelect.addEventListener('change', runExploreSearch);
+    exploreSortSelect.addEventListener('change', () => {
+      explorePage = 0;
+      runExploreSearch();
+    });
+    explorePreviousPage.addEventListener('click', () => {
+      if (explorePage === 0) return;
+      explorePage -= 1;
+      runExploreSearch();
+    });
+    exploreNextPage.addEventListener('click', () => {
+      if ((explorePage + 1) * 20 >= exploreTotal) return;
+      explorePage += 1;
+      runExploreSearch();
+    });
     document.getElementById('explore-refresh-installed').addEventListener('click', refreshInstalledContent);
+    document.getElementById('refresh-instance-mods').addEventListener('click', refreshInstanceMods);
     document.getElementById('explore-switch-instance').addEventListener('click', () => navigate('profiles'));
 
     function updateRamLabel() {
@@ -2169,6 +2358,7 @@
           accountId: selectedAccountId,
           instanceId: current.instanceId,
           legacyInstance: current.legacyInstance === true,
+          builtInMods: current.builtInMods !== false,
           gameVersion: gameVersionSelect.value,
           loaderType: loaderTypeSelect.value,
           loaderVersion: loaderVersionSelect.value,

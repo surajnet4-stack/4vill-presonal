@@ -10,6 +10,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { isPathInside, resolveManagedPath } = require('./path-safety');
+const { ensureAzureResourcePack } = require('./azure-resource-pack');
 
 const DEFAULT_GAME_VERSION = '1.20.1';
 const AZURE_CLIENT_MOD_VERSION = '1.0.0';
@@ -48,7 +49,6 @@ let mainWindow;
 let launchInProgress = false;
 let activeLaunch = null;
 let gameProcessStarted = false;
-let quitTimer;
 let updaterConfigured = false;
 const updaterState = {
   status: 'idle',
@@ -313,6 +313,7 @@ async function searchModrinth(options) {
   const params = new URLSearchParams({
     query: options.query,
     limit: '20',
+    offset: String(options.offset),
     index: ['relevance', 'downloads', 'follows', 'newest', 'updated'].includes(options.sort)
       ? options.sort
       : 'relevance',
@@ -324,18 +325,21 @@ async function searchModrinth(options) {
   });
   if (!response.ok) throw new Error(`Modrinth search failed (HTTP ${response.status}).`);
   const result = await response.json();
-  return result.hits.map((project) => ({
-    id: project.project_id,
-    provider: 'modrinth',
-    type: options.type,
-    title: project.title,
-    description: project.description,
-    icon: project.icon_url || '',
-    downloads: project.downloads || 0,
-    author: project.author || '',
-    slug: project.slug,
-    url: `https://modrinth.com/${MODRINTH_TYPES[options.type]}/${encodeURIComponent(project.slug)}`
-  }));
+  return {
+    total: result.total,
+    projects: result.hits.map((project) => ({
+      id: project.project_id,
+      provider: 'modrinth',
+      type: options.type,
+      title: project.title,
+      description: project.description,
+      icon: project.icon_url || '',
+      downloads: project.downloads || 0,
+      author: project.author || '',
+      slug: project.slug,
+      url: `https://modrinth.com/${MODRINTH_TYPES[options.type]}/${encodeURIComponent(project.slug)}`
+    }))
+  };
 }
 
 async function searchExploreCatalog(event, options) {
@@ -356,7 +360,8 @@ async function searchExploreCatalog(event, options) {
   const searchOptions = {
     ...options,
     query,
-    sort: typeof options.sort === 'string' ? options.sort : 'relevance'
+    sort: typeof options.sort === 'string' ? options.sort : 'relevance',
+    offset: Number.isInteger(options.offset) ? Math.max(0, Math.min(options.offset, 10000)) : 0
   };
   return searchModrinth(searchOptions);
 }
@@ -635,11 +640,7 @@ async function installExploreProject(event, request) {
     throw new Error('Install target must match the selected instance.');
   }
   const paths = getDataPaths();
-  const instanceDirectory = getInstanceDirectory(paths, request.instance);
-  await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
-  const managedItems = await readManagedContent(instanceDirectory);
   const contentKey = `${request.provider}:${request.type}:${request.projectId}`;
-  const previousItem = managedItems.find((item) => item.key === contentKey);
   const version = await getExploreProjectFile({
     ...request,
     projectId: request.projectId,
@@ -651,6 +652,13 @@ async function installExploreProject(event, request) {
   }
 
   const title = typeof request.title === 'string' ? request.title.slice(0, 120) : 'Minecraft content';
+  const targetInstance = request.type === 'modpack'
+    ? { ...request.instance, id: randomUUID(), legacy: false }
+    : request.instance;
+  const instanceDirectory = getInstanceDirectory(paths, targetInstance);
+  await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
+  const managedItems = await readManagedContent(instanceDirectory);
+  const previousItem = managedItems.find((item) => item.key === contentKey);
   const stagingDirectory = await fs.mkdtemp(path.join(instanceDirectory, '.4vill-install-'));
   try {
     let prepared;
@@ -659,12 +667,6 @@ async function installExploreProject(event, request) {
     if (request.type === 'modpack') {
       prepared = await prepareModpackFiles(version, stagingDirectory);
       updatedConfiguration = getPackConfiguration(prepared.manifest);
-      if (request.instance.legacy &&
-          (updatedConfiguration.gameVersion !== request.instance.gameVersion ||
-           updatedConfiguration.loaderType !== request.instance.loaderType ||
-           updatedConfiguration.loaderVersion !== request.instance.loaderVersion)) {
-        throw new Error('This older profile uses version-specific game folders. Save it as a new instance before installing a pack with a different Minecraft version or loader.');
-      }
       targetDirectory = instanceDirectory;
     } else {
       const file = getVersionFile(version);
@@ -749,6 +751,14 @@ async function installExploreProject(event, request) {
       version: version.name || version.version_number || version.displayName || '',
       installedFileCount: installedFiles.length,
       instance: updatedConfiguration
+        ? {
+            ...updatedConfiguration,
+            id: targetInstance.id,
+            name: title,
+            legacy: false,
+            builtInMods: false
+          }
+        : null
     };
   } finally {
     await fs.rm(stagingDirectory, { recursive: true, force: true });
@@ -842,6 +852,69 @@ async function removeInstalledContent(event, instance, key) {
   }
   await writeManagedContent(instanceDirectory, items.filter((candidate) => candidate.key !== key));
   return { removed: true, title: item.title };
+}
+
+async function listInstanceMods(event, instance) {
+  assertMainWindowEvent(event, 'Instance mods');
+  validateInstanceReference(instance);
+  const instanceDirectory = getInstanceDirectory(getDataPaths(), instance);
+  const modsDirectory = path.join(instanceDirectory, 'mods');
+  try {
+    const directoryStats = await fs.lstat(modsDirectory);
+    if (!directoryStats.isDirectory() || directoryStats.isSymbolicLink()) {
+      throw new Error('The instance mods folder is not a safe directory.');
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+
+  const entries = await fs.readdir(modsDirectory, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() &&
+      (entry.name.toLowerCase().endsWith('.jar') || entry.name.toLowerCase().endsWith('.jar.disabled')))
+    .map((entry) => ({
+      fileName: entry.name,
+      enabled: entry.name.toLowerCase().endsWith('.jar')
+    }))
+    .sort((left, right) => left.fileName.localeCompare(right.fileName));
+}
+
+async function setInstanceModEnabled(event, instance, fileName, enabled) {
+  assertMainWindowEvent(event, 'Toggle instance mod');
+  validateInstanceReference(instance);
+  if (typeof fileName !== 'string' || path.basename(fileName) !== fileName ||
+      fileName.includes('/') || fileName.includes('\\') ||
+      typeof enabled !== 'boolean') {
+    throw new Error('Choose a valid mod file and enabled state.');
+  }
+  const lowerFileName = fileName.toLowerCase();
+  const currentlyEnabled = lowerFileName.endsWith('.jar');
+  const currentlyDisabled = lowerFileName.endsWith('.jar.disabled');
+  if ((!currentlyEnabled && !currentlyDisabled) ||
+      (enabled && !currentlyDisabled) ||
+      (!enabled && !currentlyEnabled)) {
+    throw new Error('The mod file is already in the requested state or has an unsupported extension.');
+  }
+
+  const instanceDirectory = getInstanceDirectory(getDataPaths(), instance);
+  const modsDirectory = path.join(instanceDirectory, 'mods');
+  await ensureSafeInstanceDirectory(instanceDirectory, modsDirectory);
+  const source = resolveManagedPath(modsDirectory, fileName);
+  const targetName = enabled ? fileName.slice(0, -'.disabled'.length) : `${fileName}.disabled`;
+  const destination = resolveManagedPath(modsDirectory, targetName);
+  const sourceStats = await fs.lstat(source);
+  if (!sourceStats.isFile() || sourceStats.isSymbolicLink()) {
+    throw new Error('Only regular mod files can be enabled or disabled.');
+  }
+  try {
+    await fs.lstat(destination);
+    throw new Error(`Cannot toggle the mod because "${targetName}" already exists.`);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  await fs.rename(source, destination);
+  return { fileName: targetName, enabled };
 }
 
 async function getCatalog(gameVersion = DEFAULT_GAME_VERSION) {
@@ -1118,6 +1191,17 @@ async function installPerformanceMods(gameDirectory, gameVersion, loaderType, la
   const nextManifest = [];
   for (const release of releases) {
     const targetPath = path.join(modsDirectory, release.file.filename);
+    const disabledPath = `${targetPath}.disabled`;
+    try {
+      const disabledStats = await fs.lstat(disabledPath);
+      if (!disabledStats.isFile() || disabledStats.isSymbolicLink()) {
+        throw new Error(`Cannot prepare ${release.file.filename} because its disabled mod file is not a regular file.`);
+      }
+      sendStatus(`${release.file.filename} is disabled for this instance; leaving it disabled.`, 'info');
+      continue;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
     const existingHash = await getFileSha256(targetPath);
     const previousEntry = previous.find((entry) => entry.filename === release.file.filename);
     if (existingHash && previousEntry && existingHash === previousEntry.sha256) {
@@ -1203,6 +1287,16 @@ async function installAzureClientMod(gameDirectory, gameVersion) {
   }
 
   const targetPath = path.join(modsDirectory, filename);
+  try {
+    const disabledStats = await fs.lstat(`${targetPath}.disabled`);
+    if (!disabledStats.isFile() || disabledStats.isSymbolicLink()) {
+      throw new Error(`Cannot prepare ${filename} because its disabled client mod is not a regular file.`);
+    }
+    sendStatus('Azure in-game client is disabled for this instance; leaving it disabled.', 'info');
+    return;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   const expectedHash = createHash('sha256').update(bytes).digest('hex');
   if (managed && managed.filename !== filename && !(await removePreviousManagedMod())) return;
   const existingHash = await getFileSha256(targetPath);
@@ -1366,7 +1460,9 @@ function skinPreviewForProfile(profile) {
   return {
     name: profile.name,
     uuid,
-    skinUrl: `https://crafatar.com/renders/body/${uuid}?overlay`
+    skinUrl: profile.skins && profile.skins[0] && typeof profile.skins[0].url === 'string'
+      ? profile.skins[0].url
+      : `https://crafatar.com/skins/${uuid}`
   };
 }
 
@@ -1510,6 +1606,11 @@ ipcMain.handle('explore:installed', (event, instance) => listInstalledContent(ev
 
 ipcMain.handle('explore:remove', (event, instance, key) => removeInstalledContent(event, instance, key));
 
+ipcMain.handle('instance:list-mods', (event, instance) => listInstanceMods(event, instance));
+
+ipcMain.handle('instance:toggle-mod', (event, instance, fileName, enabled) =>
+  setInstanceModEnabled(event, instance, fileName, enabled));
+
 ipcMain.handle('explore:open-project', async (event, provider, slug) => {
   assertMainWindowEvent(event, 'Project page');
   if (provider !== 'modrinth' ||
@@ -1624,6 +1725,9 @@ function validateLaunchOptions(options) {
   }
   if (options.legacyInstance !== undefined && typeof options.legacyInstance !== 'boolean') {
     throw new Error('Invalid legacy instance setting.');
+  }
+  if (options.builtInMods !== undefined && typeof options.builtInMods !== 'boolean') {
+    throw new Error('Invalid built-in mods setting.');
   }
   if (options.loaderType !== 'vanilla' && typeof options.loaderVersion !== 'string') {
     throw new Error('Choose a loader version.');
@@ -1786,10 +1890,13 @@ async function getLaunchConfiguration(options, paths, launch) {
   }
 
   ensureLaunchActive(launch);
-  await installPerformanceMods(gameDirectory, options.gameVersion, options.loaderType, launch);
-  ensureLaunchActive(launch);
-  if (options.loaderType === 'fabric') {
-    await installAzureClientMod(gameDirectory, options.gameVersion);
+  if (options.builtInMods !== false) {
+    await installPerformanceMods(gameDirectory, options.gameVersion, options.loaderType, launch);
+    ensureLaunchActive(launch);
+    if (options.loaderType === 'fabric') {
+      await installAzureClientMod(gameDirectory, options.gameVersion);
+    }
+    await ensureAzureResourcePack(gameDirectory);
   }
   return { java, version, forge, gameDirectory };
 }
@@ -1838,8 +1945,7 @@ function connectLauncherEvents(launcher) {
     recentOutput = `${recentOutput}${text}`.slice(-12000);
     if (!gameProcessStarted && /(Setting user:|LWJGL Version:|Backend library:|OpenAL initialized)/i.test(text)) {
       gameProcessStarted = true;
-      sendStatus('Game Running!', 'success');
-      quitTimer = setTimeout(() => app.quit(), 5000);
+      sendStatus('Game Running! The launcher will stay open while you play.', 'success');
     }
   });
 
@@ -2067,8 +2173,4 @@ function configureAutoUpdates() {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('before-quit', () => {
-  if (quitTimer) clearTimeout(quitTimer);
 });

@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('launcher', {
   installExploreProject: (request) => ipcRenderer.invoke('explore:install', request),
   getInstalledContent: (instance) => ipcRenderer.invoke('explore:installed', instance),
   removeInstalledContent: (instance, key) => ipcRenderer.invoke('explore:remove', instance, key),
+  getInstanceMods: (instance) => ipcRenderer.invoke('instance:list-mods', instance),
+  setInstanceModEnabled: (instance, fileName, enabled) =>
+    ipcRenderer.invoke('instance:toggle-mod', instance, fileName, enabled),
   openExploreProject: (provider, slug) => ipcRenderer.invoke('explore:open-project', provider, slug),
   openModsFolder: (instance, folderType) => ipcRenderer.invoke('instance:open-mods', instance, folderType),
   addMicrosoftAccount: () => ipcRenderer.invoke('account:microsoft-login'),

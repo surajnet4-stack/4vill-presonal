@@ -3,6 +3,8 @@ package dev.azurepersonal.client;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import org.lwjgl.glfw.GLFW;
 
 public final class AzureMenuScreen extends Screen {
@@ -12,7 +14,8 @@ public final class AzureMenuScreen extends Screen {
         WORLD("WORLD", "Visual enhancements"),
         TOOLS("TOOLS", "PvP and survival utilities"),
         THEMES("THEMES", "Colors and transparency"),
-        PRESETS("PRESETS", "Profiles for this instance");
+        PRESETS("PRESETS", "Profiles for this instance"),
+        MODS("MODS", "Installed mods in this instance");
 
         private final String title;
         private final String subtitle;
@@ -33,6 +36,7 @@ public final class AzureMenuScreen extends Screen {
     private static final int[] HUD_FEATURES = {0, 1, 2, 3, 4, 5};
     private Tab selectedTab = Tab.HUD;
     private long openedAt;
+    private int modsScroll;
     private final Screen parent;
 
     public AzureMenuScreen() {
@@ -115,6 +119,7 @@ public final class AzureMenuScreen extends Screen {
             case TOOLS -> renderToolsTab(context, x, y, mouseX, translatedMouseY);
             case THEMES -> renderThemesTab(context, x, y, mouseX, translatedMouseY);
             case PRESETS -> renderPresetsTab(context, x, y, mouseX, translatedMouseY);
+            case MODS -> renderModsTab(context, x, y);
         }
         context.drawTextWithShadow(textRenderer, "Settings save automatically", x,
             top + PANEL_HEIGHT - 29, 0xff7f8da0);
@@ -213,28 +218,29 @@ public final class AzureMenuScreen extends Screen {
 
     private void renderThemesTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
         AzureConfig config = AzureClient.config();
-        String[] themes = {"AZURE", "EMBER", "VIOLET", "ROSE"};
-        int[] colors = {0xff49d8ce, 0xffff8a5b, 0xffa78bfa, 0xfff472b6};
+        String[] themes = {"AZURE", "EMBER", "VIOLET", "ROSE", "MINT", "FROST"};
+        int[] colors = {0xff49d8ce, 0xffff8a5b, 0xffa78bfa, 0xfff472b6, 0xff80e0a0, 0xffe6edf7};
         for (int index = 0; index < themes.length; index++) {
-            int chipX = x + index * 97;
+            int chipX = x + (index % 3) * 97;
+            int chipY = y + (index / 3) * 51;
             boolean selected = config.theme == index;
-            boolean hovered = inside(mouseX, mouseY, chipX, y, 90, 48);
-            context.fill(chipX, y, chipX + 90, y + 48, selected || hovered ? 0xff253444 : 0xff1a222d);
-            context.fill(chipX, y, chipX + 90, y + 3, colors[index]);
-            context.drawCenteredTextWithShadow(textRenderer, themes[index], chipX + 45, y + 19,
+            boolean hovered = inside(mouseX, mouseY, chipX, chipY, 90, 45);
+            context.fill(chipX, chipY, chipX + 90, chipY + 45, selected || hovered ? 0xff253444 : 0xff1a222d);
+            context.fill(chipX, chipY, chipX + 90, chipY + 3, colors[index]);
+            context.drawCenteredTextWithShadow(textRenderer, themes[index], chipX + 45, chipY + 18,
                 selected ? colors[index] : 0xffc2cbd6);
         }
-        context.drawTextWithShadow(textRenderer, "LIVE PREVIEW", x, y + 72, 0xffaab8cb);
+        context.drawTextWithShadow(textRenderer, "LIVE PREVIEW", x, y + 111, 0xffaab8cb);
         int accent = config.accentColor();
-        context.fill(x, y + 94, x + 389, y + 130, withOpacity(0xff1a222d, config.menuOpacity));
-        context.fill(x, y + 94, x + 3, y + 130, accent);
-        context.drawTextWithShadow(textRenderer, "Azure Personal  ·  Active theme", x + 14, y + 107, 0xfff1f5fa);
-        drawValueControl(context, x, y + 148, "MENU OPACITY", config.menuOpacity, 35, 100, 4, mouseX, mouseY);
-        drawValueControl(context, x, y + 194, "HUD BACKGROUND", config.hudOpacity, 20, 100, 5, mouseX, mouseY);
+        context.fill(x, y + 133, x + 389, y + 169, withOpacity(0xff1a222d, config.menuOpacity));
+        context.fill(x, y + 133, x + 3, y + 169, accent);
+        context.drawTextWithShadow(textRenderer, "Azure Personal  ·  Active theme", x + 14, y + 146, 0xfff1f5fa);
+        drawValueControl(context, x, y + 185, "MENU OPACITY", config.menuOpacity, 35, 100, 4, mouseX, mouseY);
+        drawValueControl(context, x, y + 231, "HUD BACKGROUND", config.hudOpacity, 20, 100, 5, mouseX, mouseY);
         context.drawTextWithShadow(textRenderer, "Opacity changes affect menu panels and HUD chips.",
-            x, y + 238, 0xff91a0b3);
+            x, y + 275, 0xff91a0b3);
         context.drawTextWithShadow(textRenderer, "Theme and opacity preferences are saved locally.",
-            x, y + 256, 0xff8292a7);
+            x, y + 293, 0xff8292a7);
     }
 
     private void renderPresetsTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
@@ -263,6 +269,52 @@ public final class AzureMenuScreen extends Screen {
             x + 14, infoY + 49, 0xff91a0b3);
         context.drawTextWithShadow(textRenderer, "Tip  ·  Use EDIT HUD to place and scale each widget.",
             x, infoY + 91, 0xff8292a7);
+    }
+
+    private void renderModsTab(DrawContext context, int x, int y) {
+        var mods = FabricLoader.getInstance().getAllMods().stream()
+            .sorted((left, right) -> left.getMetadata().getName()
+                .compareToIgnoreCase(right.getMetadata().getName()))
+            .toList();
+        int visibleRows = 10;
+        int maxScroll = Math.max(0, mods.size() - visibleRows);
+        modsScroll = Math.max(0, Math.min(modsScroll, maxScroll));
+        context.drawTextWithShadow(textRenderer, mods.size() + " loaded mods", x, y - 10,
+            AzureClient.config().accentColor());
+        for (int row = 0; row < visibleRows; row++) {
+            int index = modsScroll + row;
+            if (index >= mods.size()) break;
+            ModContainer mod = mods.get(index);
+            int rowY = y + row * 33;
+            context.fill(x, rowY, x + 389, rowY + 28,
+                withOpacity(0xff1a222d, AzureClient.config().menuOpacity));
+            context.fill(x, rowY, x + 3, rowY + 28, AzureClient.config().accentColor());
+            context.drawTextWithShadow(textRenderer, mod.getMetadata().getName(), x + 11, rowY + 5,
+                0xfff1f5fa);
+            context.drawTextWithShadow(textRenderer,
+                mod.getMetadata().getId() + "  ·  " + mod.getMetadata().getVersion().getFriendlyString(),
+                x + 11, rowY + 16, 0xff91a0b3);
+        }
+        if (mods.size() > visibleRows) {
+            context.drawTextWithShadow(textRenderer, "Scroll to browse all mods",
+                x, y + visibleRows * 33 + 2, 0xff8292a7);
+        }
+    }
+
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        return scrollMods(amount);
+    }
+
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return scrollMods(verticalAmount);
+    }
+
+    private boolean scrollMods(double amount) {
+        if (selectedTab != Tab.MODS) return false;
+        int modCount = FabricLoader.getInstance().getAllMods().size();
+        modsScroll = Math.max(0, Math.min(Math.max(0, modCount - 10),
+            modsScroll + (amount < 0 ? 3 : -3)));
+        return true;
     }
 
     private void drawPresetCard(DrawContext context, int x, int y, int cardWidth, int cardHeight,
@@ -569,15 +621,17 @@ public final class AzureMenuScreen extends Screen {
             return true;
         } else if (selectedTab == Tab.THEMES) {
             AzureConfig config = AzureClient.config();
-            for (int index = 0; index < 4; index++) {
-                if (inside((int) mouseX, adjustedY, x + index * 97, y, 90, 48)) {
+            for (int index = 0; index < 6; index++) {
+                int chipX = x + (index % 3) * 97;
+                int chipY = y + (index / 3) * 51;
+                if (inside((int) mouseX, adjustedY, chipX, chipY, 90, 45)) {
                     config.theme = index;
                     config.save();
                     return true;
                 }
             }
-            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 148, 4) ||
-                handleValueClick(config, (int) mouseX, adjustedY, x, y + 194, 5)) return true;
+            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 185, 4) ||
+                handleValueClick(config, (int) mouseX, adjustedY, x, y + 231, 5)) return true;
         } else if (selectedTab == Tab.PRESETS) {
             String[] presetIds = {"pvp", "smp", "minimal", "custom"};
             int cardWidth = 190;

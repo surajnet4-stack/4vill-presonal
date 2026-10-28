@@ -72,7 +72,7 @@ public final class AzureConfig {
                     loaded.crosshairGap = Math.max(1, Math.min(12, loaded.crosshairGap));
                     loaded.crosshairThickness = Math.max(1, Math.min(6, loaded.crosshairThickness));
                     loaded.crosshairOpacity = Math.max(20, Math.min(100, loaded.crosshairOpacity));
-                    loaded.theme = Math.max(0, Math.min(3, loaded.theme));
+                    loaded.theme = Math.max(0, Math.min(5, loaded.theme));
                     loaded.fullBrightLevel = Math.max(100, Math.min(300, loaded.fullBrightLevel));
                     loaded.zoomLevel = Math.max(2, Math.min(10, loaded.zoomLevel));
                     loaded.menuOpacity = Math.max(35, Math.min(100, loaded.menuOpacity));
@@ -115,6 +115,8 @@ public final class AzureConfig {
             case 1 -> 0xffff8a5b;
             case 2 -> 0xffa78bfa;
             case 3 -> 0xfff472b6;
+            case 4 -> 0xff80e0a0;
+            case 5 -> 0xffe6edf7;
             default -> 0xff49d8ce;
         };
     }

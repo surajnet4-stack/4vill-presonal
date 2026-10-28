@@ -9,6 +9,7 @@ module.exports = {
     'preload.js',
     'index.html',
     'path-safety.js',
+    'azure-resource-pack.js',
     'assets/**/*',
     'bin/**/*',
     'client-mod/build/libs/azure-client-*-1.0.0.jar',

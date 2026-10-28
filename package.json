@@ -1,13 +1,13 @@
 {
   "name": "azure-personal",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Azure Personal Minecraft launcher for Windows",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "build:client-mod": "client-mod\\gradlew.bat -p client-mod build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.2 -Pyarn_mappings=1.20.2+build.4 -Pfabric_version=0.91.6+1.20.2 build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.3 -Pyarn_mappings=1.20.3+build.1 -Pfabric_version=0.91.1+1.20.3 build && client-mod\\gradlew.bat -p client-mod -Pminecraft_version=1.20.4 -Pyarn_mappings=1.20.4+build.3 -Pfabric_version=0.97.2+1.20.4 build",
-    "test": "node --test test/path-safety.test.js",
+    "test": "node --test test/*.test.js",
     "build:setup": "npm run build:client-mod && electron-builder --config electron-builder.config.js --win nsis --x64",
     "build": "npm run build:setup",
     "release:windows": "npm run build:client-mod && electron-builder --config electron-builder.config.js --win nsis --x64 --publish always"
