@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('launcher', {
   getInstanceMods: (instance) => ipcRenderer.invoke('instance:list-mods', instance),
   setInstanceModEnabled: (instance, fileName, enabled) =>
     ipcRenderer.invoke('instance:toggle-mod', instance, fileName, enabled),
+  getCrownCosmetic: (instance) => ipcRenderer.invoke('cosmetic:crown:get', instance),
+  setCrownCosmetic: (instance, enabled) => ipcRenderer.invoke('cosmetic:crown:set', instance, enabled),
   openExploreProject: (provider, slug) => ipcRenderer.invoke('explore:open-project', provider, slug),
   openModsFolder: (instance, folderType) => ipcRenderer.invoke('instance:open-mods', instance, folderType),
   addMicrosoftAccount: () => ipcRenderer.invoke('account:microsoft-login'),

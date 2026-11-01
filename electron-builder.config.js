@@ -12,7 +12,7 @@ module.exports = {
     'azure-resource-pack.js',
     'assets/**/*',
     'bin/**/*',
-    'client-mod/build/libs/azure-client-*-1.0.0.jar',
+    'client-mod/build/libs/azure-client-*-1.0.1.jar',
     'package.json'
   ],
   asar: true,

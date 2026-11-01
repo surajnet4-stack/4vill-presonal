@@ -15,7 +15,8 @@ public final class AzureMenuScreen extends Screen {
         TOOLS("TOOLS", "PvP and survival utilities"),
         THEMES("THEMES", "Colors and transparency"),
         PRESETS("PRESETS", "Profiles for this instance"),
-        MODS("MODS", "Installed mods in this instance");
+        MODS("MODS", "Installed mods in this instance"),
+        COSMETICS("COSMETICS", "Free starter cosmetics");
 
         private final String title;
         private final String subtitle;
@@ -81,14 +82,20 @@ public final class AzureMenuScreen extends Screen {
         context.fill(left + 4, top + 7, left + PANEL_WIDTH + 4, top + PANEL_HEIGHT + 7, 0x66000000);
         context.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, withOpacity(0xff10151e, config.menuOpacity));
         context.fill(left, top, left + PANEL_WIDTH, top + 2, accent);
+        context.fill(left, top + 2, left + PANEL_WIDTH, top + 3, withOpacity(accent, 38));
         context.fill(left + 1, top + 1, left + 168, top + PANEL_HEIGHT - 1,
             withOpacity(0xff141b27, config.menuOpacity));
         context.fill(left + 168, top + 1, left + 169, top + PANEL_HEIGHT - 1, 0xff2a3544);
+        drawBorder(context, left, top, PANEL_WIDTH, PANEL_HEIGHT, 0x665b7187);
 
         context.fill(left + 20, top + 20, left + 45, top + 45, accent);
+        context.fill(left + 20, top + 20, left + 45, top + 21, 0xfff4f7fb);
         context.drawCenteredTextWithShadow(textRenderer, "A", left + 32, top + 28, 0xff10151e);
         context.drawTextWithShadow(textRenderer, "AZURE PERSONAL", left + 54, top + 22, 0xfff1f5fb);
         context.drawTextWithShadow(textRenderer, "CLIENT MENU", left + 54, top + 35, 0xff91a0b4);
+        context.drawTextWithShadow(textRenderer, "ACTIVE INSTANCE", left + PANEL_WIDTH - 132, top + 20, 0xff8292a7);
+        context.drawTextWithShadow(textRenderer, AzureConfig.instanceLabel(), left + PANEL_WIDTH - 132,
+            top + 34, accent);
 
         int navY = top + 78;
         for (int index = 0; index < TABS.length; index++) {
@@ -98,6 +105,8 @@ public final class AzureMenuScreen extends Screen {
                 mouseY >= y && mouseY <= y + 30;
             if (active || hovered) {
                 context.fill(left + 13, y, left + 155, y + 30, active ? 0xff253444 : 0xff1b2734);
+                drawBorder(context, left + 13, y, 142, 30,
+                    active ? withOpacity(accent, 120) : 0x554b6075);
             }
             if (active) context.fill(left + 13, y, left + 16, y + 30, accent);
             context.drawTextWithShadow(textRenderer, active ? ">" : "-", left + 25, y + 10,
@@ -111,6 +120,8 @@ public final class AzureMenuScreen extends Screen {
         int translatedMouseY = mouseY - lift;
         int x = contentLeft();
         int y = contentTop() + lift;
+        context.fill(x, top + 54, x + PANEL_WIDTH - 210, top + 55, 0x443a4a5d);
+        context.fill(x, top + 54, x + 24, top + 56, accent);
         context.drawTextWithShadow(textRenderer, selectedTab.subtitle, x, top + 58, 0xffaab8cb);
         switch (selectedTab) {
             case HUD -> renderHudTab(context, x, y, mouseX, translatedMouseY);
@@ -120,6 +131,7 @@ public final class AzureMenuScreen extends Screen {
             case THEMES -> renderThemesTab(context, x, y, mouseX, translatedMouseY);
             case PRESETS -> renderPresetsTab(context, x, y, mouseX, translatedMouseY);
             case MODS -> renderModsTab(context, x, y);
+            case COSMETICS -> renderCosmeticsTab(context, x, y, mouseX, translatedMouseY);
         }
         context.drawTextWithShadow(textRenderer, "Settings save automatically", x,
             top + PANEL_HEIGHT - 29, 0xff7f8da0);
@@ -227,6 +239,8 @@ public final class AzureMenuScreen extends Screen {
             boolean hovered = inside(mouseX, mouseY, chipX, chipY, 90, 45);
             context.fill(chipX, chipY, chipX + 90, chipY + 45, selected || hovered ? 0xff253444 : 0xff1a222d);
             context.fill(chipX, chipY, chipX + 90, chipY + 3, colors[index]);
+            drawBorder(context, chipX, chipY, 90, 45,
+                selected ? colors[index] : hovered ? 0x88798da2 : 0x55435365);
             context.drawCenteredTextWithShadow(textRenderer, themes[index], chipX + 45, chipY + 18,
                 selected ? colors[index] : 0xffc2cbd6);
         }
@@ -301,6 +315,43 @@ public final class AzureMenuScreen extends Screen {
         }
     }
 
+    private void renderCosmeticsTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
+        AzureConfig config = AzureClient.config();
+        int accent = config.accentColor();
+        int previewX = x + 116;
+        int previewY = y + 34;
+        context.fill(x, y, x + 389, y + 180, withOpacity(0xff1a222d, config.menuOpacity));
+        drawBorder(context, x, y, 389, 180, 0x55435365);
+        context.drawCenteredTextWithShadow(textRenderer, "FREE STARTER COSMETIC", x + 194, y + 14, accent);
+
+        int crownX = previewX;
+        int crownY = previewY + 35;
+        int black = 0xff10141b;
+        context.fill(crownX + 8, crownY + 25, crownX + 136, crownY + 53, black);
+        context.fill(crownX + 2, crownY + 19, crownX + 20, crownY + 48, black);
+        context.fill(crownX + 42, crownY + 4, crownX + 60, crownY + 48, black);
+        context.fill(crownX + 71, crownY - 5, crownX + 89, crownY + 48, black);
+        context.fill(crownX + 105, crownY + 4, crownX + 123, crownY + 48, black);
+        context.fill(crownX + 124, crownY + 18, crownX + 142, crownY + 48, black);
+        context.fill(crownX + 5, crownY + 49, crownX + 140, crownY + 55, accent);
+        context.fill(crownX + 61, crownY + 31, crownX + 68, crownY + 47, accent);
+        context.fill(crownX + 78, crownY + 25, crownX + 85, crownY + 47, accent);
+        context.fill(crownX + 95, crownY + 31, crownX + 102, crownY + 47, accent);
+        context.fill(crownX + 68, crownY + 37, crownX + 95, crownY + 44, accent);
+        context.drawCenteredTextWithShadow(textRenderer, "OBSIDIAN  ·  AZURE MARK",
+            x + 194, y + 142, 0xffaab8cb);
+
+        drawActionCard(context, x, y + 198, 389, 42, mouseX, mouseY,
+            config.azureCrownEquipped
+                ? "AZURE CROWN  ·  EQUIPPED  ·  CLICK TO UNEQUIP"
+                : "AZURE CROWN  ·  OWNED FREE  ·  CLICK TO EQUIP",
+            config.azureCrownEquipped ? accent : 0xffaab8cb);
+        context.drawTextWithShadow(textRenderer, "Visible on your player in third-person view.",
+            x, y + 260, 0xffaab8cb);
+        context.drawTextWithShadow(textRenderer, "This client-side cosmetic is not server-synced.",
+            x, y + 278, 0xff8292a7);
+    }
+
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         return scrollMods(amount);
     }
@@ -324,6 +375,8 @@ public final class AzureMenuScreen extends Screen {
         context.fill(x, y, x + cardWidth, y + cardHeight,
             active ? withOpacity(accent, 42) : hovered ? 0xff253444 : 0xff1a222d);
         context.fill(x, y, x + 3, y + cardHeight, active ? accent : 0xff344355);
+        drawBorder(context, x, y, cardWidth, cardHeight,
+            active ? withOpacity(accent, 145) : hovered ? 0x88798da2 : 0x55435365);
         context.drawTextWithShadow(textRenderer, title, x + 13, y + 13, active ? accent : 0xfff1f5fa);
         context.drawTextWithShadow(textRenderer, active ? "ACTIVE" : "APPLY", x + cardWidth - 48, y + 14,
             active ? accent : 0xff8292a7);
@@ -340,6 +393,8 @@ public final class AzureMenuScreen extends Screen {
             hovered ? 0xff253444 : enabled ? 0xff202a36 : 0xff1a222d);
         int accent = AzureClient.config().accentColor();
         context.fill(x, y, x + 2, y + cardHeight, enabled ? accent : 0xff344355);
+        drawBorder(context, x, y, cardWidth, cardHeight,
+            hovered ? 0x99798da2 : enabled ? withOpacity(accent, 85) : 0x55435365);
         context.drawTextWithShadow(textRenderer, icon, x + 12, y + 12, enabled ? accent : 0xff92a1b4);
         context.drawTextWithShadow(textRenderer, label, x + 32, y + 9, 0xfff1f5fa);
         context.drawTextWithShadow(textRenderer, description, x + 32, y + 25, 0xff91a0b3);
@@ -356,6 +411,8 @@ public final class AzureMenuScreen extends Screen {
         int accent = AzureClient.config().accentColor();
         context.fill(x, y, x + cardWidth, y + cardHeight, hovered ? 0xff253444 : 0xff1a222d);
         context.fill(x, y, x + 2, y + cardHeight, enabled ? accent : 0xff344355);
+        drawBorder(context, x, y, cardWidth, cardHeight,
+            hovered ? 0x99798da2 : enabled ? withOpacity(accent, 85) : 0x55435365);
         context.drawTextWithShadow(textRenderer, label, x + 12, y + 16, 0xfff1f5fa);
         String state = enabled ? "ON" : "OFF";
         context.drawTextWithShadow(textRenderer, state, x + cardWidth - 50, y + 16,
@@ -371,6 +428,8 @@ public final class AzureMenuScreen extends Screen {
         boolean hovered = inside(mouseX, mouseY, x, y, cardWidth, cardHeight);
         context.fill(x, y, x + cardWidth, y + cardHeight, hovered ? 0xff253444 : 0xff1a222d);
         context.fill(x, y, x + 2, y + cardHeight, accent);
+        drawBorder(context, x, y, cardWidth, cardHeight,
+            hovered ? 0x99798da2 : withOpacity(accent, 90));
         context.drawCenteredTextWithShadow(textRenderer, label, x + cardWidth / 2, y + (cardHeight - 8) / 2,
             hovered ? 0xfff5f7ff : accent);
     }
@@ -419,6 +478,13 @@ public final class AzureMenuScreen extends Screen {
     private static int withOpacity(int color, int opacityPercent) {
         int alpha = Math.max(0, Math.min(255, opacityPercent * 255 / 100));
         return (color & 0x00ffffff) | (alpha << 24);
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int borderWidth, int borderHeight, int color) {
+        context.fill(x, y, x + borderWidth, y + 1, color);
+        context.fill(x, y + borderHeight - 1, x + borderWidth, y + borderHeight, color);
+        context.fill(x, y + 1, x + 1, y + borderHeight - 1, color);
+        context.fill(x + borderWidth - 1, y + 1, x + borderWidth, y + borderHeight - 1, color);
     }
 
     private void drawCrosshairPreview(DrawContext context, int x, int y, int mouseX, int mouseY) {
@@ -644,6 +710,12 @@ public final class AzureMenuScreen extends Screen {
                     return true;
                 }
             }
+        } else if (selectedTab == Tab.COSMETICS &&
+            inside((int) mouseX, adjustedY, x, y + 198, 389, 42)) {
+            AzureConfig config = AzureClient.config();
+            config.azureCrownEquipped = !config.azureCrownEquipped;
+            config.save();
+            return true;
         }
         return true;
     }

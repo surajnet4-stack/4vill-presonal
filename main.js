@@ -13,7 +13,7 @@ const { isPathInside, resolveManagedPath } = require('./path-safety');
 const { ensureAzureResourcePack } = require('./azure-resource-pack');
 
 const DEFAULT_GAME_VERSION = '1.20.1';
-const AZURE_CLIENT_MOD_VERSION = '1.0.0';
+const AZURE_CLIENT_MOD_VERSION = '1.0.1';
 const MINECRAFT_MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 const FABRIC_META_URL = 'https://meta.fabricmc.net/v2';
 const FORGE_PROMOTIONS_URL = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
@@ -917,6 +917,61 @@ async function setInstanceModEnabled(event, instance, fileName, enabled) {
   return { fileName: targetName, enabled };
 }
 
+async function getCrownCosmeticEnabled(event, instance) {
+  assertMainWindowEvent(event, 'Cosmetic settings');
+  validateInstanceReference(instance);
+  const instanceDirectory = getInstanceDirectory(getDataPaths(), instance);
+  const configDirectory = path.join(instanceDirectory, 'config');
+  await ensureSafeInstanceDirectory(instanceDirectory, configDirectory);
+  const configPath = path.join(configDirectory, 'azure-client.json');
+  try {
+    const stats = await fs.lstat(configPath);
+    if (!stats.isFile() || stats.isSymbolicLink()) {
+      throw new Error('The instance cosmetic settings file is not a regular file.');
+    }
+    const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    if (!config || Array.isArray(config) || typeof config !== 'object') {
+      throw new Error('The instance cosmetic settings file has an invalid format.');
+    }
+    return typeof config.azureCrownEquipped === 'boolean' ? config.azureCrownEquipped : true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return true;
+    throw error;
+  }
+}
+
+async function setCrownCosmeticEnabled(event, instance, enabled) {
+  assertMainWindowEvent(event, 'Cosmetic settings');
+  validateInstanceReference(instance);
+  if (typeof enabled !== 'boolean') throw new Error('Choose whether the Azure Crown is equipped.');
+  const instanceDirectory = getInstanceDirectory(getDataPaths(), instance);
+  const configDirectory = path.join(instanceDirectory, 'config');
+  await ensureSafeInstanceDirectory(instanceDirectory, configDirectory);
+  const configPath = path.join(configDirectory, 'azure-client.json');
+  let config = {};
+  try {
+    const stats = await fs.lstat(configPath);
+    if (!stats.isFile() || stats.isSymbolicLink()) {
+      throw new Error('The instance cosmetic settings file is not a regular file.');
+    }
+    config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    if (!config || Array.isArray(config) || typeof config !== 'object') {
+      throw new Error('The instance cosmetic settings file has an invalid format.');
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  config.azureCrownEquipped = enabled;
+  const temporaryPath = `${configPath}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, JSON.stringify(config, null, 2), { flag: 'wx' });
+    await fs.rename(temporaryPath, configPath);
+  } finally {
+    await fs.rm(temporaryPath, { force: true });
+  }
+  return enabled;
+}
+
 async function getCatalog(gameVersion = DEFAULT_GAME_VERSION) {
   const manifest = await getMinecraftManifest();
   const versions = manifest.versions.filter(isSupportedRelease).map(({ id }) => id);
@@ -1610,6 +1665,12 @@ ipcMain.handle('instance:list-mods', (event, instance) => listInstanceMods(event
 
 ipcMain.handle('instance:toggle-mod', (event, instance, fileName, enabled) =>
   setInstanceModEnabled(event, instance, fileName, enabled));
+
+ipcMain.handle('cosmetic:crown:get', (event, instance) =>
+  getCrownCosmeticEnabled(event, instance));
+
+ipcMain.handle('cosmetic:crown:set', (event, instance, enabled) =>
+  setCrownCosmeticEnabled(event, instance, enabled));
 
 ipcMain.handle('explore:open-project', async (event, provider, slug) => {
   assertMainWindowEvent(event, 'Project page');

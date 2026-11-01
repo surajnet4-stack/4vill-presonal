@@ -25,6 +25,7 @@ public final class AzureConfig {
     public boolean showDirection = true;
     public boolean showCps = true;
     public boolean customCrosshair = true;
+    public boolean azureCrownEquipped = true;
     public boolean toggleSprint;
     public boolean autoSprint;
     public boolean blockOutline = true;

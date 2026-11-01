@@ -73,7 +73,8 @@
       margin: 0;
       overflow: hidden;
       background:
-        radial-gradient(ellipse at 72% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 35%),
+        radial-gradient(ellipse at 72% 0%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 38%),
+        radial-gradient(ellipse at 0% 100%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 34%),
         var(--bg);
       color: var(--text);
       transition: background-color .25s ease, color .25s ease;
@@ -105,6 +106,7 @@
       border-radius: 13px;
       background: color-mix(in srgb, var(--surface) 84%, transparent);
       -webkit-app-region: drag;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, .13);
     }
 
     .brand, .top-actions, .account-chip, .window-actions {
@@ -186,6 +188,7 @@
     }
 
     .nav-item {
+      position: relative;
       display: grid;
       width: 60px;
       min-height: 58px;
@@ -199,12 +202,24 @@
       cursor: pointer;
       transition: color .18s ease, border-color .18s ease, background .18s ease, transform .18s ease;
     }
+    .nav-item::after {
+      position: absolute;
+      inset: 12px auto 12px -1px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+      opacity: 0;
+      content: "";
+      transition: opacity .18s ease;
+    }
     .nav-item:hover { color: var(--text); background: var(--surface-raised); transform: translateY(-1px); }
     .nav-item[aria-current="page"] {
       border-color: color-mix(in srgb, var(--accent) 20%, transparent);
       color: var(--accent);
       background: var(--accent-soft);
+      box-shadow: inset 0 0 18px color-mix(in srgb, var(--accent) 5%, transparent);
     }
+    .nav-item[aria-current="page"]::after { opacity: 1; }
     .nav-item span { font-size: 9px; font-weight: 650; letter-spacing: .03em; }
     .nav-item[data-page="cosmetics"] span { font-size: 7px; letter-spacing: 0; }
     .nav-item svg { width: 19px; height: 19px; }
@@ -237,7 +252,11 @@
       border-radius: 13px;
       background: color-mix(in srgb, var(--surface) 84%, transparent);
       scrollbar-color: var(--surface-soft) transparent;
+      box-shadow: 0 10px 34px rgba(0, 0, 0, .12);
     }
+    .content::-webkit-scrollbar { width: 8px; }
+    .content::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 99px; background: var(--surface-soft); background-clip: padding-box; }
+    .content::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 42%, var(--surface-soft)); background-clip: padding-box; }
 
     .page { display: none; animation: page-enter .28s cubic-bezier(.2,.75,.25,1) both; }
     .page.active { display: block; }
@@ -253,6 +272,8 @@
       gap: 12px;
       margin: 0 2px 13px;
     }
+    .page-heading > div { position: relative; }
+    .page-heading h1 { text-shadow: 0 4px 24px color-mix(in srgb, var(--accent) 12%, transparent); }
     .overline { margin: 0 0 5px; color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
     h1, h2, h3, p { margin-top: 0; }
     h1 { margin-bottom: 0; font-size: 21px; font-weight: 680; letter-spacing: -.04em; }
@@ -366,6 +387,11 @@
       border: 1px solid var(--stroke);
       border-radius: var(--radius);
       background: var(--surface-raised);
+      transition: border-color .18s ease, background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+    }
+    .setup-card:hover, .info-card:hover, .settings-card:hover {
+      border-color: color-mix(in srgb, var(--accent) 18%, var(--stroke));
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
     }
     .setup-card { padding: 14px; }
     .card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 13px; }
@@ -396,6 +422,12 @@
       background: var(--bg);
       font-size: 9px;
       cursor: pointer;
+      transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+    }
+    .select-control:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 46%, var(--stroke-strong)); }
+    .select-control:focus-visible, .text-input:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
     }
     .select-control:disabled { cursor: not-allowed; opacity: .55; }
     .version-settings { display: grid; gap: 9px; margin-top: 11px; }
@@ -461,6 +493,7 @@
       color: var(--text);
       background: var(--bg);
       font-size: 10px;
+      transition: border-color .16s ease, box-shadow .16s ease;
     }
     .text-input::placeholder { color: var(--subtle); }
     .text-input:focus { border-color: var(--accent); }
@@ -518,6 +551,22 @@
     .theme-card[data-theme-choice="aurora"] { --preview-bg: #0e1419; --preview-accent: #7dd6c0; }
     .theme-card[data-theme-choice="violet"] { --preview-bg: #111019; --preview-accent: #c1a7ff; }
 
+    .cosmetic-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr); gap: 12px; }
+    .cosmetic-showcase { position: relative; display: grid; min-height: 270px; grid-template-columns: minmax(140px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 16px; overflow: hidden; padding: 20px; }
+    .cosmetic-showcase::before { position: absolute; top: -90px; left: -60px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%); content: ""; pointer-events: none; }
+    .crown-preview { position: relative; display: grid; min-height: 205px; place-items: center; border: 1px solid var(--stroke); border-radius: 14px; background: radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%), var(--bg); }
+    .crown-preview svg { width: min(100%, 170px); height: 155px; filter: drop-shadow(0 10px 18px rgba(0,0,0,.45)); }
+    .crown-copy { position: relative; }
+    .cosmetic-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .cosmetic-title-row h2 { margin: 0; font-size: 17px; }
+    .cosmetic-owned { padding: 4px 7px; border: 1px solid color-mix(in srgb, var(--success) 32%, transparent); border-radius: 999px; color: var(--success); background: color-mix(in srgb, var(--success) 9%, transparent); font-size: 8px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+    .cosmetic-copy-text { max-width: 290px; margin: 0 0 14px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+    .cosmetic-state { margin: 10px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .cosmetic-info { display: flex; flex-direction: column; justify-content: center; }
+    .cosmetic-info .quick-row:first-of-type { margin-top: 2px; }
+    .cosmetic-unavailable { color: #f2c879; }
+    .cosmetic-showcase .launch-button { min-width: 145px; min-height: 38px; }
+
     .explore-instance { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--stroke); border-radius: 9px; color: var(--muted); background: var(--surface-raised); font-size: 10px; }
     .explore-notice[hidden] { display: none; }
     .explore-instance strong { color: var(--text); }
@@ -572,7 +621,8 @@
     }
     @media (max-width: 800px) {
       .explore-results { grid-template-columns: 1fr; }
-    }
+        .cosmetic-layout { grid-template-columns: 1fr; }
+      }
     .status-indicator { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px color-mix(in srgb, var(--success) 52%, transparent); }
     .status-line[data-kind="warning"] .status-indicator { background: #f2c879; }
     .status-line[data-kind="error"] .status-indicator { background: var(--danger); box-shadow: 0 0 10px color-mix(in srgb, var(--danger) 45%, transparent); }
@@ -685,7 +735,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>UPDATE</span>
         </button>
-        <span class="build-label">v1.0.4</span>
+        <span class="build-label">v1.0.5</span>
       </nav>
 
       <main class="content">
@@ -836,6 +886,24 @@
               <button class="secondary-button" id="change-skin-profile" type="button" style="margin-top:8px">Choose local skin PNG</button>
               <label class="field-label" for="profile-name">LAUNCH PROFILE NAME</label>
               <input class="text-input" id="profile-name" type="text" maxlength="32" autocomplete="off" placeholder="e.g. Survival 1.20">
+              <label class="field-label" for="new-instance-game-version">MINECRAFT VERSION</label>
+              <select class="select-control" id="new-instance-game-version" aria-label="New instance Minecraft version">
+                <option value="1.20.1">1.20.1</option>
+              </select>
+              <label class="field-label" for="new-instance-loader-type">GAME LOADER</label>
+              <select class="select-control" id="new-instance-loader-type" aria-label="New instance game loader">
+                <option value="vanilla">Vanilla</option>
+                <option value="fabric" selected>Fabric</option>
+                <option value="forge">Forge</option>
+                <option value="optifine">OptiFine (imported)</option>
+              </select>
+              <div id="new-instance-loader-version-wrap">
+                <label class="field-label" for="new-instance-loader-version">LOADER VERSION</label>
+                <select class="select-control" id="new-instance-loader-version" aria-label="New instance loader version">
+                  <option value="0.15.11">0.15.11</option>
+                </select>
+              </div>
+              <p class="tiny muted" id="new-instance-loader-help" role="status" aria-live="polite">Choose a Minecraft version and loader for this instance.</p>
               <hr class="section-divider">
               <p class="tiny muted">Saving creates a separate game folder for this instance, including its mods, settings, and saves.</p>
               <button class="launch-button" id="save-profile-button" type="button" style="min-width:190px;min-height:39px">SAVE AS NEW INSTANCE</button>
@@ -977,11 +1045,34 @@
           <div class="page-heading">
             <div><p class="overline">Personal style</p><h1 id="cosmetics-title">Cosmetics</h1></div>
           </div>
-          <section class="settings-card" style="min-height:270px;display:grid;place-content:center;text-align:center">
-            <p class="overline">Coming soon</p>
-            <h2 style="font-size:20px">Cosmetics are coming soon.</h2>
-            <p class="tiny muted" style="max-width:350px;margin:5px auto 0">This space is reserved for future Azure Personal cosmetics. Minecraft account skins can be changed from Profiles.</p>
-          </section>
+          <div class="cosmetic-layout">
+            <section class="settings-card cosmetic-showcase" aria-label="Azure Crown cosmetic">
+              <div class="crown-preview">
+                <svg viewBox="0 0 160 145" role="img" aria-label="Black crown with an Azure A logo">
+                  <path d="M25 57 43 75 55 38 79 65 103 34 116 75 137 52 128 111H34L25 57Z" fill="#10141b" stroke="#394454" stroke-width="4" stroke-linejoin="round"/>
+                  <path d="M35 88H129L125 110H39L35 88Z" fill="#080b10"/>
+                  <path d="m60 86 13-27 8 18 9-18 15 27h-9l-6-12-9 16-8-16-5 12h-8Z" fill="#49d8ce"/>
+                  <path d="M28 119H135" stroke="#49d8ce" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+                  <circle cx="43" cy="76" r="4" fill="#49d8ce"/><circle cx="103" cy="35" r="4" fill="#49d8ce"/><circle cx="137" cy="52" r="4" fill="#49d8ce"/>
+                </svg>
+              </div>
+              <div class="crown-copy">
+                <div class="cosmetic-title-row"><h2>Azure Crown</h2><span class="cosmetic-owned">Free starter</span></div>
+                <p class="cosmetic-copy-text">A dark, forged crown with the Azure mark at its center. Included free for every player and saved separately for each instance.</p>
+                <button class="launch-button" id="crown-toggle" type="button" aria-pressed="true">UNEQUIP CROWN</button>
+                <p class="cosmetic-state" id="crown-status" role="status" aria-live="polite">Equipped for this instance.</p>
+              </div>
+            </section>
+            <aside class="settings-card cosmetic-info">
+              <p class="overline">Cosmetic details</p>
+              <h2>Made for your in-game look.</h2>
+              <p>Wear it in third-person view with the Azure client mod. Your choice is stored per instance and can also be changed from the in-game Cosmetics tab.</p>
+              <div class="quick-row"><span>Availability</span><strong>Free · permanent</strong></div>
+              <div class="quick-row"><span>Style</span><strong>Obsidian + Azure</strong></div>
+              <div class="quick-row"><span>Visibility</span><strong>Client-side · third person</strong></div>
+              <p class="cosmetic-state cosmetic-unavailable" id="crown-compatibility"></p>
+            </aside>
+          </div>
         </section>
 
         <section class="page" id="page-settings" aria-labelledby="settings-title">
@@ -1052,6 +1143,11 @@
     const usernameInput = document.getElementById('username');
     const microsoftAccountArea = document.getElementById('microsoft-account-area');
     const profileNameInput = document.getElementById('profile-name');
+    const newInstanceGameVersionSelect = document.getElementById('new-instance-game-version');
+    const newInstanceLoaderTypeSelect = document.getElementById('new-instance-loader-type');
+    const newInstanceLoaderVersionSelect = document.getElementById('new-instance-loader-version');
+    const newInstanceLoaderVersionWrap = document.getElementById('new-instance-loader-version-wrap');
+    const newInstanceLoaderHelp = document.getElementById('new-instance-loader-help');
     const accountsList = document.getElementById('accounts-list');
     const savedProfilesList = document.getElementById('saved-profiles');
     const gameVersionSelect = document.getElementById('game-version');
@@ -1071,6 +1167,9 @@
     const launchLabel = document.getElementById('launch-label');
     const cancelLaunchButton = document.getElementById('cancel-launch-button');
     const saveInstanceButton = document.getElementById('save-profile-button');
+    const crownToggleButton = document.getElementById('crown-toggle');
+    const crownStatus = document.getElementById('crown-status');
+    const crownCompatibility = document.getElementById('crown-compatibility');
     const openInstanceModsButton = document.getElementById('open-instance-mods');
     const openSharedModsButton = document.getElementById('open-shared-mods');
     const exploreTypeSelect = document.getElementById('explore-type');
@@ -1112,10 +1211,13 @@
     let isLaunching = false;
     let cancelRequested = false;
     let loaderRequestSequence = 0;
+    let newInstanceCatalogRequestSequence = 0;
     let exploreSearchSequence = 0;
     let explorePage = 0;
     let exploreTotal = 0;
     let skinRequestSequence = 0;
+    let cosmeticRequestSequence = 0;
+    let crownEquipped = true;
     let skinRefreshTimer;
     let accounts = readStored('4vill.accounts', []);
     if (!Array.isArray(accounts)) accounts = [];
@@ -1398,6 +1500,93 @@
       }
     }
 
+    async function refreshNewInstanceLoaderVersions(preferredVersion = '') {
+      const requestId = ++newInstanceCatalogRequestSequence;
+      const gameVersion = newInstanceGameVersionSelect.value || current.gameVersion;
+      const loader = newInstanceLoaderTypeSelect.value;
+      const requiresVersion = loader !== 'vanilla';
+      newInstanceLoaderVersionWrap.hidden = !requiresVersion;
+      newInstanceLoaderVersionSelect.disabled = !requiresVersion;
+
+      if (!requiresVersion) {
+        setOptions(newInstanceLoaderVersionSelect, [], '', 'Vanilla');
+        newInstanceLoaderHelp.textContent = `Minecraft ${gameVersion} · Vanilla`;
+        return;
+      }
+
+      newInstanceLoaderVersionSelect.disabled = true;
+      setOptions(newInstanceLoaderVersionSelect, [], '', `Loading ${loader} versions...`);
+      newInstanceLoaderHelp.textContent = `Loading ${loader} versions for Minecraft ${gameVersion}...`;
+      try {
+        let versionCatalog;
+        if (gameVersion === catalog.gameVersion) {
+          versionCatalog = catalog;
+        } else if (window.launcher) {
+          versionCatalog = await window.launcher.getCatalog(gameVersion);
+        } else {
+          versionCatalog = {
+            gameVersion,
+            fabric: ['0.15.11', '0.14.25'],
+            forge: [],
+            loaderErrors: {},
+            optifineProfiles: []
+          };
+        }
+        let versions = loader === 'fabric'
+          ? versionCatalog.fabric
+          : loader === 'forge'
+            ? await window.launcher.getLoaderVersions(gameVersion, 'forge')
+            : versionCatalog.optifineProfiles.map((profile) => ({
+              value: profile.id,
+              label: profile.name
+            }));
+        if (requestId !== newInstanceCatalogRequestSequence) return;
+
+        const preferred = preferredVersion ||
+          (gameVersion === current.gameVersion && loader === current.loaderType
+            ? current.loaderVersion
+            : '');
+        const fallback = loader === 'fabric' && gameVersion === '1.20.1' &&
+          versions.includes('0.15.11')
+          ? '0.15.11'
+          : versions[0] && (typeof versions[0] === 'string' ? versions[0] : versions[0].value) || '';
+        const placeholder = loader === 'optifine'
+          ? 'Import an OptiFine profile'
+          : versions.length ? '' : 'No compatible versions found';
+        setOptions(newInstanceLoaderVersionSelect, versions, preferred || fallback, placeholder);
+        newInstanceLoaderVersionSelect.disabled = versions.length === 0;
+        newInstanceLoaderHelp.textContent = versions.length
+          ? `${loader === 'fabric' ? 'Fabric Loader' : loader === 'forge' ? 'Forge' : 'OptiFine'} versions for Minecraft ${gameVersion}.`
+          : loader === 'optifine'
+            ? 'Import an OptiFine profile before selecting it.'
+            : `No ${loader === 'fabric' ? 'Fabric' : 'Forge'} builds are available for Minecraft ${gameVersion}.`;
+      } catch (error) {
+        if (requestId !== newInstanceCatalogRequestSequence) return;
+        setOptions(newInstanceLoaderVersionSelect, [], '', 'Could not load versions');
+        newInstanceLoaderVersionSelect.disabled = true;
+        newInstanceLoaderHelp.textContent = `Could not load loader versions: ${error.message}`;
+      }
+    }
+
+    function syncNewInstanceVersionOptions() {
+      const versions = catalog.versions || [];
+      setOptions(
+        newInstanceGameVersionSelect,
+        versions.map((version) => ({
+          value: version,
+          label: version === catalog.latest ? `${version} · latest` : version
+        })),
+        newInstanceGameVersionSelect.value || current.gameVersion
+      );
+    }
+
+    newInstanceGameVersionSelect.addEventListener('change', () => {
+      refreshNewInstanceLoaderVersions();
+    });
+    newInstanceLoaderTypeSelect.addEventListener('change', () => {
+      refreshNewInstanceLoaderVersions();
+    });
+
     function currentLoaderVersions() {
       if (current.loaderType === 'fabric') return catalog.fabric;
       if (current.loaderType === 'forge') return catalog.forge;
@@ -1513,6 +1702,11 @@
         );
         catalogLoaded = true;
         current.gameVersion = gameVersionSelect.value;
+        syncNewInstanceVersionOptions();
+        if (!newInstanceGameVersionSelect.value) {
+          newInstanceGameVersionSelect.value = current.gameVersion;
+        }
+        refreshNewInstanceLoaderVersions();
         await renderLoaderVersions(loaderVersion);
         savePersistentState();
         if (!isLaunching) launchButton.disabled = false;
@@ -1525,6 +1719,7 @@
     gameVersionSelect.addEventListener('change', async () => {
       await refreshCatalog(gameVersionSelect.value, '');
       syncCurrentFromControls();
+      refreshCrownCosmetic();
       if (document.getElementById('page-explore').classList.contains('active')) {
         updateExploreInstanceLabel();
         runExploreSearch();
@@ -1533,11 +1728,12 @@
       }
     });
 
-    loaderTypeSelect.addEventListener('change', () => {
+    loaderTypeSelect.addEventListener('change', async () => {
       current.loaderType = loaderTypeSelect.value;
       current.loaderVersion = '';
-      renderLoaderVersions('');
+      await renderLoaderVersions('');
       syncCurrentFromControls();
+      refreshCrownCosmetic();
       if (document.getElementById('page-explore').classList.contains('active')) {
         updateExploreInstanceLabel();
         runExploreSearch();
@@ -1548,6 +1744,7 @@
     loaderVersionSelect.addEventListener('change', () => {
       updateVersionSummaries();
       syncCurrentFromControls();
+      refreshCrownCosmetic();
       if (document.getElementById('page-explore').classList.contains('active')) {
         updateExploreInstanceLabel();
         runExploreSearch();
@@ -1640,6 +1837,7 @@
       loaderTypeSelect.value = profile.loaderType || 'vanilla';
       selectAuthMode(profile.authMode || 'local');
       await refreshCatalog(profile.gameVersion, profile.loaderVersion);
+      await refreshCrownCosmetic();
       loaderTypeSelect.value = profile.loaderType || 'vanilla';
       updateRamLabel();
       updateProfileLabels();
@@ -1764,7 +1962,7 @@
       }
     });
 
-    saveInstanceButton.addEventListener('click', () => {
+    saveInstanceButton.addEventListener('click', async () => {
       if (current.authMode === 'local' && !/^[A-Za-z0-9_]{3,16}$/.test(usernameInput.value.trim())) {
         setStatus('Use 3–16 letters, numbers, or underscores for your local nickname.', 'error');
         usernameInput.focus();
@@ -1776,7 +1974,7 @@
       }
       syncCurrentFromControls();
       const name = profileNameInput.value.trim() ||
-        `${current.username || selectedAccount()?.name || 'Minecraft'} ${current.gameVersion}`;
+        `${current.username || selectedAccount()?.name || 'Minecraft'} ${newInstanceGameVersionSelect.value}`;
       const profile = {
         id: crypto.randomUUID(),
         instanceId: crypto.randomUUID(),
@@ -1785,21 +1983,22 @@
         authMode: current.authMode,
         username: usernameInput.value.trim(),
         accountId: current.authMode === 'microsoft' ? selectedAccountId : '',
-        gameVersion: gameVersionSelect.value,
-        loaderType: loaderTypeSelect.value,
-        loaderVersion: loaderVersionSelect.value,
+        gameVersion: newInstanceGameVersionSelect.value,
+        loaderType: newInstanceLoaderTypeSelect.value,
+        loaderVersion: newInstanceLoaderTypeSelect.value === 'vanilla'
+          ? ''
+          : newInstanceLoaderVersionSelect.value,
         builtInMods: current.builtInMods !== false,
         ram: Number(ramInput.value)
       };
+      if (profile.loaderType !== 'vanilla' && !profile.loaderVersion) {
+        setStatus('Select an available loader version before creating this instance.', 'error');
+        return;
+      }
       launchProfiles.push(profile);
       activeProfileId = profile.id;
-      current = { ...profile };
-      profileNameInput.value = name;
-      savePersistentState();
-      renderSavedProfiles();
-      updateProfileLabels();
+      await activateProfile(profile);
       setStatus(`Launch profile “${name}” saved on this device.`, 'success');
-      navigate('play');
     });
 
     async function openModsFolder(folderType, button) {
@@ -1840,6 +2039,57 @@
         loaderVersion: current.loaderVersion
       };
     }
+
+    function renderCrownCosmetic() {
+      crownToggleButton.textContent = crownEquipped ? 'UNEQUIP CROWN' : 'EQUIP CROWN';
+      crownToggleButton.setAttribute('aria-pressed', String(crownEquipped));
+      crownStatus.textContent = crownEquipped
+        ? 'Equipped for this instance.'
+        : 'Unequipped for this instance. Your free crown remains in your collection.';
+      const needsFabric = current.loaderType !== 'fabric';
+      const missingClientMod = current.builtInMods === false;
+      crownCompatibility.textContent = needsFabric
+        ? 'Select a Fabric instance to render cosmetics in-game.'
+        : missingClientMod
+          ? 'This instance excludes the Azure client mod, so the crown will not render in-game.'
+          : 'The Azure client mod will render the crown on your player in third person.';
+      crownCompatibility.hidden = false;
+    }
+
+    async function refreshCrownCosmetic() {
+      const requestId = ++cosmeticRequestSequence;
+      if (!window.launcher) {
+        crownEquipped = true;
+        renderCrownCosmetic();
+        return;
+      }
+      try {
+        const equipped = await window.launcher.getCrownCosmetic(currentInstanceReference());
+        if (requestId !== cosmeticRequestSequence) return;
+        crownEquipped = equipped;
+        renderCrownCosmetic();
+      } catch (error) {
+        if (requestId !== cosmeticRequestSequence) return;
+        crownStatus.textContent = error.message || 'Could not load this instance’s cosmetic state.';
+      }
+    }
+
+    crownToggleButton.addEventListener('click', async () => {
+      if (!window.launcher) {
+        setStatus('Cosmetic controls are available in the desktop launcher.', 'warning');
+        return;
+      }
+      crownToggleButton.disabled = true;
+      try {
+        crownEquipped = await window.launcher.setCrownCosmetic(currentInstanceReference(), !crownEquipped);
+        renderCrownCosmetic();
+        setStatus(`Azure Crown ${crownEquipped ? 'equipped' : 'unequipped'} for this instance.`, 'success');
+      } catch (error) {
+        setStatus(error.message || 'Could not update the Azure Crown.', 'error');
+      } finally {
+        crownToggleButton.disabled = false;
+      }
+    });
 
     function updateExploreInstanceLabel() {
       const instance = currentInstanceReference();
@@ -2321,7 +2571,7 @@
     updateProfileLabels();
     updateExploreInstanceLabel();
     refreshPlayerSkin();
-    refreshCatalog(current.gameVersion, current.loaderVersion);
+    refreshCatalog(current.gameVersion, current.loaderVersion).then(refreshCrownCosmetic);
 
     launchButton.addEventListener('click', async () => {
       if (isLaunching) return;
