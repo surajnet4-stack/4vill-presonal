@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="dawn" x2="0" y2="1">
+      <stop stop-color="#101d26"/>
+      <stop offset=".52" stop-color="#35514d"/>
+      <stop offset="1" stop-color="#111b1a"/>
+    </linearGradient>
+    <radialGradient id="mist">
+      <stop stop-color="#a1c9a8" stop-opacity=".52"/>
+      <stop offset="1" stop-color="#92b9a2" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path fill="url(#dawn)" d="M0 0h1920v1080H0z"/>
+  <ellipse cx="1060" cy="480" rx="620" ry="330" fill="url(#mist)"/>
+  <path fill="#223b37" d="M0 700q300-220 600-35t580-58q310-175 740 80v393H0z"/>
+  <path fill="#172b28" d="M0 790q280-134 600 0t640-28q360-122 680 31v287H0z"/>
+  <g fill="#0c1715">
+    <path d="m90 820 130-440 130 440zm-40 260V820h340v260z"/>
+    <path d="m430 835 160-560 160 560zm-55 245V835h430v245z"/>
+    <path d="m1330 820 150-500 150 500zm-45 260V820h390v260z"/>
+    <path d="m1600 850 140-470 140 470zm-45 230V850h370v230z"/>
+  </g>
+  <path fill="#080f0e" d="M0 1000q360-90 700 0t660-12q300-58 560 12v80H0z"/>
+</svg>

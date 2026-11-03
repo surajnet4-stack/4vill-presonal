@@ -66,6 +66,7 @@
     * { box-sizing: border-box; }
 
     body {
+      position: relative;
       width: 100vw;
       height: 100vh;
       min-width: 760px;
@@ -79,6 +80,16 @@
       color: var(--text);
       transition: background-color .25s ease, color .25s ease;
     }
+    body::before {
+      position: fixed;
+      z-index: 0;
+      inset: 0;
+      background-image: linear-gradient(115deg, rgba(10, 12, 18, .72), rgba(11, 13, 19, .48)), var(--launcher-background-image, none);
+      background-position: center;
+      background-size: cover;
+      content: "";
+      pointer-events: none;
+    }
 
     button, input { font: inherit; }
     button { color: inherit; }
@@ -88,6 +99,8 @@
     }
 
     .app {
+      position: relative;
+      z-index: 1;
       display: grid;
       grid-template-rows: 58px minmax(0, 1fr);
       width: 100%;
@@ -261,9 +274,13 @@
     .page { display: none; animation: page-enter .28s cubic-bezier(.2,.75,.25,1) both; }
     .page.active { display: block; }
     @keyframes page-enter {
-      from { opacity: 0; transform: translateY(7px); }
+      from { opacity: 0; transform: translateY(10px) scale(.996); filter: blur(2px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    .app { animation: app-open .42s cubic-bezier(.2,.75,.25,1) both; }
+    @keyframes app-open { from { opacity: 0; transform: translateY(7px) scale(.994); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    body.is-closing .app { animation: app-close .2s ease-in both; pointer-events: none; }
+    @keyframes app-close { to { opacity: 0; transform: translateY(8px) scale(.99); filter: blur(2px); } }
 
     .page-heading {
       display: flex;
@@ -338,6 +355,7 @@
     .hero .overline { color: color-mix(in srgb, var(--accent) 80%, white); }
     .hero-title { margin: 0 0 6px; color: #fff; font-size: clamp(22px, 3vw, 32px); font-weight: 720; letter-spacing: -.045em; text-shadow: 0 2px 18px rgba(0,0,0,.3); }
     .hero-description { max-width: 360px; margin: 0; color: rgba(245, 243, 236, .77); font-size: 11px; line-height: 1.55; }
+    .hero-description.custom-message { color: #fff; font-size: 12px; font-weight: 580; }
     .hero-actions { display: flex; align-items: center; gap: 9px; }
     .launch-button {
       display: inline-flex;
@@ -457,6 +475,23 @@
     .bottom-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(180px, .85fr); gap: 11px; margin-top: 12px; }
     .info-card { min-height: 110px; padding: 13px 14px; }
     .info-card p { margin: 0; }
+    .music-card { grid-column: 1 / -1; min-height: 84px; padding: 12px 14px; }
+    .music-player { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    .music-play-button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--stroke)); border-radius: 50%; color: var(--accent); background: var(--accent-soft); cursor: pointer; }
+    .music-play-button:disabled { cursor: not-allowed; opacity: .48; }
+    .music-play-button svg { width: 15px; height: 15px; }
+    .music-track { min-width: 0; }
+    .music-track-name { display: block; overflow: hidden; color: var(--text); font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .music-track-meta { display: flex; align-items: center; gap: 8px; margin-top: 7px; color: var(--muted); font-size: 8px; }
+    .music-progress { width: 100%; height: 3px; flex: 1; accent-color: var(--accent); cursor: pointer; }
+    .music-actions { display: flex; align-items: center; gap: 7px; }
+    .music-actions .secondary-button { min-height: 31px; padding: 0 9px; font-size: 8px; }
+    .music-visualizer { display: flex; height: 20px; align-items: center; gap: 3px; color: var(--accent); }
+    .music-visualizer i { display: block; width: 2px; height: 4px; border-radius: 3px; background: currentColor; }
+    .music-card.is-playing .music-visualizer i { animation: music-wave .8s ease-in-out infinite alternate; }
+    .music-card.is-playing .music-visualizer i:nth-child(2n) { animation-delay: -.3s; }
+    .music-card.is-playing .music-visualizer i:nth-child(3n) { animation-delay: -.55s; }
+    @keyframes music-wave { to { height: 17px; opacity: .55; } }
     .player-preview { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
     .player-skin { width: 52px; height: 68px; flex: none; object-fit: contain; image-rendering: pixelated; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
     .skin-placeholder { display: grid; width: 52px; height: 68px; flex: none; place-content: center; justify-items: center; gap: 2px; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
@@ -475,7 +510,28 @@
     .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); gap: 11px; }
     .settings-card { padding: 16px; }
     .settings-card > p { margin: 0 0 16px; color: var(--muted); font-size: 10px; line-height: 1.55; }
-    .update-card { grid-column: 1 / -1; }
+    .update-card, .personalization-card { grid-column: 1 / -1; }
+    .personalization-controls { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(220px, .85fr); gap: 18px; }
+    .background-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .background-choice { min-width: 0; padding: 5px; border: 1px solid var(--stroke); border-radius: 9px; color: var(--muted); background: var(--surface); cursor: pointer; text-align: left; }
+    .background-choice:hover { border-color: var(--stroke-strong); color: var(--text); }
+    .background-choice[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); color: var(--text); }
+    .background-choice:disabled { cursor: not-allowed; opacity: .5; }
+    .background-preview { display: block; height: 50px; border-radius: 6px; background: linear-gradient(145deg, #172033, #35455c); background-position: center; background-size: cover; }
+    .background-choice[data-background="aurora"] .background-preview { background-image: url("./assets/backgrounds/aurora-ridge.svg"); }
+    .background-choice[data-background="lunar"] .background-preview { background-image: url("./assets/backgrounds/lunar-tide.svg"); }
+    .background-choice[data-background="ember"] .background-preview { background-image: url("./assets/backgrounds/ember-dunes.svg"); }
+    .background-choice[data-background="forest"] .background-preview { background-image: url("./assets/backgrounds/quiet-forest.svg"); }
+    .background-choice[data-background="custom"] .background-preview { background-image: linear-gradient(135deg, #273246, #151921); }
+    .background-name { display: block; overflow: hidden; margin: 5px 1px 0; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .background-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+    .personalization-side { display: grid; align-content: start; gap: 8px; }
+    .personalization-side .field-label { margin-top: 0; }
+    .personalization-side .secondary-button { justify-self: start; }
+    .personalization-status { min-height: 13px; margin: 7px 0 0 !important; color: var(--muted); font-size: 9px !important; }
+    .personalization-status[data-kind="error"] { color: var(--danger); }
+    .personalization-status[data-kind="success"] { color: var(--success); }
+    .music-volume { width: 88px; accent-color: var(--accent); }
     .update-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .update-status { min-width: 180px; flex: 1; margin: 0 !important; }
     .update-status[data-kind="success"] { color: var(--accent); }
@@ -498,6 +554,11 @@
     .text-input::placeholder { color: var(--subtle); }
     .text-input:focus { border-color: var(--accent); }
     .field-label { display: block; margin: 13px 0 6px; color: var(--muted); font-size: 9px; font-weight: 650; }
+    .presence-option { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .presence-option input { margin: 1px 0 0; accent-color: var(--accent); }
+    .presence-status { margin: 12px 0 !important; color: var(--muted); font-size: 9px; }
+    .presence-status[data-kind="error"] { color: var(--danger); }
+    .presence-status[data-kind="connected"] { color: var(--success); }
     .notice {
       display: flex;
       gap: 8px;
@@ -575,6 +636,13 @@
     .explore-search { display: flex; gap: 7px; }
     .explore-search .text-input { min-width: 80px; min-height: 34px; font-size: 10px; }
     .explore-search button { min-height: 34px; padding: 0 12px; }
+    .explore-search button[aria-busy="true"] { position: relative; }
+    .explore-search button[aria-busy="true"]::before { width: 10px; height: 10px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; content: ""; animation: launch-spin .7s linear infinite; }
+    .project-card, .installed-row { animation: list-item-in .22s ease-out both; }
+    @keyframes list-item-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .status-line[data-kind="busy"] .status-indicator { animation: status-pulse 1s ease-in-out infinite; }
+    @keyframes status-pulse { 50% { transform: scale(.72); opacity: .58; } }
+    body[data-operation="install"] .content { border-color: color-mix(in srgb, var(--accent) 25%, var(--stroke)); }
     .explore-notice { display: flex; align-items: center; gap: 7px; margin: 10px 2px 12px; color: var(--muted); font-size: 9px; line-height: 1.5; }
     .explore-notice button { padding: 0; border: 0; color: var(--accent); background: transparent; cursor: pointer; font: inherit; font-weight: 650; }
     .explore-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
@@ -655,6 +723,12 @@
       .play-grid { grid-template-columns: minmax(0, 1fr) 205px; gap: 8px; }
       .hero { min-height: 285px; padding: 15px; }
       .bottom-grid { gap: 8px; margin-top: 8px; }
+      .personalization-controls { grid-template-columns: 1fr; }
+      .background-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 800px) {
+      .music-player { grid-template-columns: auto minmax(0, 1fr); }
+      .music-actions { grid-column: 1 / -1; justify-content: flex-end; }
     }
 
     @media (max-height: 680px) {
@@ -735,7 +809,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>UPDATE</span>
         </button>
-        <span class="build-label">v1.0.5</span>
+        <span class="build-label">v1.0.6</span>
       </nav>
 
       <main class="content">
@@ -756,7 +830,8 @@
               <div class="hero-copy">
                 <p class="overline">A calmer way to play</p>
                 <h2 class="hero-title">Make it your world.</h2>
-                <p class="hero-description">A clean, focused home for your Minecraft sessions. Set your profile, tune memory, and jump back in.</p>
+                <p class="hero-description" id="default-launcher-message">A clean, focused home for your Minecraft sessions. Set your profile, tune memory, and jump back in.</p>
+                <p class="hero-description custom-message" id="custom-launcher-message" aria-live="polite" hidden></p>
               </div>
               <div class="hero-actions">
                 <button class="launch-button" id="launch-button" type="button">
@@ -839,6 +914,30 @@
                 </div>
                 <button class="secondary-button" id="change-skin-home" type="button">Change skin</button>
               </div>
+            </section>
+            <section class="info-card music-card" id="music-card" aria-label="Launcher music player">
+              <div class="music-player">
+                <button class="music-play-button" id="music-play-button" type="button" aria-label="Play selected track" disabled>
+                  <svg id="music-play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.8c0-.8.9-1.3 1.6-.9l9.2 5.2a1 1 0 0 1 0 1.8l-9.2 5.2c-.7.4-1.6-.1-1.6-.9V5.8Z"/></svg>
+                  <svg id="music-pause-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" hidden><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>
+                </button>
+                <div class="music-track">
+                  <strong class="music-track-name" id="music-track-name">Choose your own soundtrack</strong>
+                  <div class="music-track-meta">
+                    <span id="music-time">0:00</span>
+                    <input class="music-progress" id="music-progress" type="range" min="0" max="0" value="0" aria-label="Track position" disabled>
+                    <span id="music-duration">0:00</span>
+                    <span class="music-visualizer" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                  </div>
+                </div>
+                <div class="music-actions">
+                  <label class="sr-only" for="music-volume">Music volume</label>
+                  <input class="music-volume" id="music-volume" type="range" min="0" max="1" step=".05" value=".55" aria-label="Music volume">
+                  <button class="secondary-button" id="choose-music-button" type="button">Choose track</button>
+                  <button class="secondary-button" id="clear-music-button" type="button" hidden>Clear</button>
+                </div>
+              </div>
+              <audio id="launcher-audio" preload="none"></audio>
             </section>
           </div>
           <div class="status-line" id="status" role="status" aria-live="polite" data-kind="info">
@@ -971,7 +1070,7 @@
             <div><p class="overline">Discover content</p><h1 id="explore-title">Explore</h1></div>
           </div>
           <div class="explore-instance">
-            <span>INSTALL TARGET</span>
+            <span id="explore-target-label">INSTALL TARGET</span>
             <strong id="explore-instance-label">Current instance · Minecraft 1.20.1</strong>
             <button class="secondary-button" id="explore-switch-instance" type="button">Choose instance</button>
           </div>
@@ -999,16 +1098,20 @@
               </select>
             </div>
             <div class="explore-control">
-              <label>VERSION / LOADER</label>
+              <label id="explore-version-label">VERSION / LOADER</label>
               <span class="tiny muted" id="explore-compatibility">Minecraft 1.20.1 · Fabric</span>
+              <select class="select-control" id="modpack-game-version" aria-label="Modpack Minecraft version" hidden>
+                <option value="1.20.1">1.20.1</option>
+              </select>
             </div>
             <div class="explore-search">
               <input class="text-input" id="explore-query" type="search" maxlength="100" placeholder="Search projects" aria-label="Search projects">
               <button class="secondary-button" id="explore-search-button" type="button">Search</button>
+              <button class="secondary-button" id="explore-import-modpack" type="button" hidden>Import .mrpack</button>
             </div>
           </div>
           <p class="explore-notice">
-            Modrinth is available inside Azure Personal. CurseForge is not available inside this client. Modpacks install into their own saved instance without Azure’s built-in mods.
+            Modrinth is available inside Azure Personal. Modpacks install as a named, separate instance without requiring or changing the active instance. Choose its Minecraft version above; imported packs use the version declared in their manifest.
           </p>
           <p class="explore-notice" id="explore-status" role="status" aria-live="polite" hidden></p>
           <div class="explore-section-heading">
@@ -1096,6 +1199,56 @@
                 <button class="secondary-button" id="install-update-button" type="button" hidden>Restart and install</button>
               </div>
             </section>
+            <section class="settings-card personalization-card" aria-labelledby="personalization-heading">
+              <h2 id="personalization-heading">Launcher look &amp; feel</h2>
+              <p>Pick a scene, set a welcome message, or use your own image. Backgrounds are resized locally to keep memory use modest.</p>
+              <div class="personalization-controls">
+                <div>
+                  <span class="field-label">BACKGROUND SCENE</span>
+                  <div class="background-grid" role="group" aria-label="Launcher background">
+                    <button class="background-choice" data-background="default" type="button" aria-pressed="true">
+                      <span class="background-preview"></span><span class="background-name">Original</span>
+                    </button>
+                    <button class="background-choice" data-background="aurora" type="button" aria-pressed="false">
+                      <span class="background-preview"></span><span class="background-name">Aurora ridge</span>
+                    </button>
+                    <button class="background-choice" data-background="lunar" type="button" aria-pressed="false">
+                      <span class="background-preview"></span><span class="background-name">Lunar tide</span>
+                    </button>
+                    <button class="background-choice" data-background="ember" type="button" aria-pressed="false">
+                      <span class="background-preview"></span><span class="background-name">Ember dunes</span>
+                    </button>
+                    <button class="background-choice" data-background="forest" type="button" aria-pressed="false">
+                      <span class="background-preview"></span><span class="background-name">Quiet forest</span>
+                    </button>
+                    <button class="background-choice" data-background="custom" id="custom-background-choice" type="button" aria-pressed="false" disabled>
+                      <span class="background-preview" id="custom-background-preview"></span><span class="background-name">Custom image</span>
+                    </button>
+                  </div>
+                  <div class="background-actions">
+                    <button class="secondary-button" id="choose-background-button" type="button">Choose image</button>
+                    <button class="secondary-button" id="reset-background-button" type="button" hidden>Remove custom image</button>
+                  </div>
+                </div>
+                <div class="personalization-side">
+                  <label class="field-label" for="custom-launcher-text">WELCOME TEXT ON PLAY</label>
+                  <input class="text-input" id="custom-launcher-text" type="text" maxlength="80" placeholder="A short message for your launcher">
+                  <button class="secondary-button" id="save-launcher-text" type="button">Save welcome text</button>
+                  <p class="personalization-status" id="personalization-status" role="status" aria-live="polite"></p>
+                </div>
+              </div>
+            </section>
+            <section class="settings-card" aria-labelledby="discord-heading">
+              <h2 id="discord-heading">Discord Rich Presence</h2>
+              <p>Show Azure Personal and your Minecraft version in Discord while you play. Discord’s desktop app must be running.</p>
+              <label class="field-label" for="discord-client-id">Discord Application ID</label>
+              <input class="text-input" id="discord-client-id" type="text" inputmode="numeric" autocomplete="off" placeholder="Paste your application ID">
+              <p class="tiny">Create an application named “Azure Personal” in the Discord Developer Portal. Discord uses that application name as the activity title.</p>
+              <label class="presence-option"><input id="discord-enabled" type="checkbox"><span>Enable Discord Rich Presence</span></label>
+              <label class="presence-option"><input id="discord-share-server" type="checkbox"><span>Share the connected server address in my activity. This is off by default.</span></label>
+              <p class="presence-status" id="discord-status" role="status" aria-live="polite">Discord Rich Presence is disabled.</p>
+              <button class="secondary-button" id="save-discord-settings" type="button">Save Discord settings</button>
+            </section>
             <section class="settings-card">
               <h2>Appearance</h2>
               <p>Choose an accent that feels right. Your theme is saved on this device.</p>
@@ -1176,6 +1329,9 @@
     const exploreSortSelect = document.getElementById('explore-sort');
     const exploreQueryInput = document.getElementById('explore-query');
     const exploreSearchButton = document.getElementById('explore-search-button');
+    const exploreImportModpackButton = document.getElementById('explore-import-modpack');
+    const modpackGameVersionSelect = document.getElementById('modpack-game-version');
+    const exploreVersionLabel = document.getElementById('explore-version-label');
     const exploreResults = document.getElementById('explore-results');
     const exploreInstalled = document.getElementById('explore-installed');
     const instanceMods = document.getElementById('instance-mods');
@@ -1185,7 +1341,9 @@
     const exploreStatus = document.getElementById('explore-status');
     const exploreResultCount = document.getElementById('explore-result-count');
     const exploreResultsHeading = document.getElementById('explore-results-heading');
+    const exploreTargetLabel = document.getElementById('explore-target-label');
     const exploreInstanceLabel = document.getElementById('explore-instance-label');
+    const exploreSwitchInstanceButton = document.getElementById('explore-switch-instance');
     const exploreCompatibility = document.getElementById('explore-compatibility');
     const statusLine = document.getElementById('status');
     const statusText = document.getElementById('status-text');
@@ -1193,6 +1351,33 @@
     const checkUpdatesButton = document.getElementById('check-updates-button');
     const downloadUpdateButton = document.getElementById('download-update-button');
     const installUpdateButton = document.getElementById('install-update-button');
+    const discordClientIdInput = document.getElementById('discord-client-id');
+    const discordEnabledInput = document.getElementById('discord-enabled');
+    const discordShareServerInput = document.getElementById('discord-share-server');
+    const discordStatus = document.getElementById('discord-status');
+    const saveDiscordSettingsButton = document.getElementById('save-discord-settings');
+    const defaultLauncherMessage = document.getElementById('default-launcher-message');
+    const customLauncherMessage = document.getElementById('custom-launcher-message');
+    const customLauncherTextInput = document.getElementById('custom-launcher-text');
+    const saveLauncherTextButton = document.getElementById('save-launcher-text');
+    const personalizationStatus = document.getElementById('personalization-status');
+    const backgroundChoices = [...document.querySelectorAll('.background-choice')];
+    const customBackgroundChoice = document.getElementById('custom-background-choice');
+    const customBackgroundPreview = document.getElementById('custom-background-preview');
+    const chooseBackgroundButton = document.getElementById('choose-background-button');
+    const resetBackgroundButton = document.getElementById('reset-background-button');
+    const musicCard = document.getElementById('music-card');
+    const launcherAudio = document.getElementById('launcher-audio');
+    const musicPlayButton = document.getElementById('music-play-button');
+    const musicPlayIcon = document.getElementById('music-play-icon');
+    const musicPauseIcon = document.getElementById('music-pause-icon');
+    const musicTrackName = document.getElementById('music-track-name');
+    const musicProgress = document.getElementById('music-progress');
+    const musicTime = document.getElementById('music-time');
+    const musicDuration = document.getElementById('music-duration');
+    const musicVolume = document.getElementById('music-volume');
+    const chooseMusicButton = document.getElementById('choose-music-button');
+    const clearMusicButton = document.getElementById('clear-music-button');
     const accountStatus = document.getElementById('account-status');
     const accountName = document.getElementById('account-name');
     const profileCardName = document.getElementById('profile-card-name');
@@ -1213,6 +1398,7 @@
     let loaderRequestSequence = 0;
     let newInstanceCatalogRequestSequence = 0;
     let exploreSearchSequence = 0;
+    let preferredPackGameVersion = localStorage.getItem('4vill.modpackGameVersion') || '';
     let explorePage = 0;
     let exploreTotal = 0;
     let skinRequestSequence = 0;
@@ -1500,6 +1686,21 @@
       }
     }
 
+    function syncModpackGameVersions() {
+      const versions = catalog.versions || [];
+      setOptions(
+        modpackGameVersionSelect,
+        versions.map((version) => ({
+          value: version,
+          label: version === catalog.latest ? `${version} · latest` : version
+        })),
+        preferredPackGameVersion || current.gameVersion
+      );
+      if (!preferredPackGameVersion || !versions.includes(preferredPackGameVersion)) {
+        preferredPackGameVersion = modpackGameVersionSelect.value;
+      }
+    }
+
     async function refreshNewInstanceLoaderVersions(preferredVersion = '') {
       const requestId = ++newInstanceCatalogRequestSequence;
       const gameVersion = newInstanceGameVersionSelect.value || current.gameVersion;
@@ -1703,6 +1904,7 @@
         catalogLoaded = true;
         current.gameVersion = gameVersionSelect.value;
         syncNewInstanceVersionOptions();
+        syncModpackGameVersions();
         if (!newInstanceGameVersionSelect.value) {
           newInstanceGameVersionSelect.value = current.gameVersion;
         }
@@ -2092,6 +2294,15 @@
     });
 
     function updateExploreInstanceLabel() {
+      if (exploreTypeSelect.value === 'modpack') {
+        exploreTargetLabel.textContent = 'NEW INSTANCE';
+        exploreInstanceLabel.textContent =
+          `New standalone instance · Minecraft ${modpackGameVersionSelect.value}`;
+        exploreSwitchInstanceButton.hidden = true;
+        return;
+      }
+      exploreTargetLabel.textContent = 'INSTALL TARGET';
+      exploreSwitchInstanceButton.hidden = false;
       const instance = currentInstanceReference();
       const loaderName = instance.loaderType === 'vanilla'
         ? 'Vanilla'
@@ -2189,7 +2400,11 @@
         return;
       }
       const requestId = ++exploreSearchSequence;
-      const instance = currentInstanceReference();
+      const isModpackSearch = exploreTypeSelect.value === 'modpack';
+      const instance = isModpackSearch ? null : currentInstanceReference();
+      const selectedGameVersion = isModpackSearch
+        ? modpackGameVersionSelect.value
+        : instance.gameVersion;
       const provider = 'modrinth';
       const type = exploreTypeSelect.value;
       exploreResults.replaceChildren();
@@ -2198,6 +2413,7 @@
       loading.textContent = 'Searching Modrinth…';
       exploreResults.append(loading);
       exploreSearchButton.disabled = true;
+      exploreSearchButton.setAttribute('aria-busy', 'true');
       explorePreviousPage.disabled = true;
       exploreNextPage.disabled = true;
       exploreResultsHeading.textContent = `Browse ${exploreTypeSelect.options[exploreTypeSelect.selectedIndex].text}`;
@@ -2208,9 +2424,13 @@
           query: exploreQueryInput.value,
           sort: exploreSortSelect.value,
           offset: explorePage * 20,
-          instance,
-          gameVersion: instance.gameVersion,
-          loaderType: instance.loaderType
+          ...(isModpackSearch
+            ? { packGameVersion: selectedGameVersion }
+            : {
+              instance,
+              gameVersion: instance.gameVersion,
+              loaderType: instance.loaderType
+            })
         });
         if (requestId !== exploreSearchSequence) return;
         renderExploreResults(result.projects, result.total);
@@ -2226,6 +2446,7 @@
       } finally {
         if (requestId === exploreSearchSequence) {
           exploreSearchButton.disabled = false;
+          exploreSearchButton.removeAttribute('aria-busy');
           explorePreviousPage.disabled = explorePage === 0;
           exploreNextPage.disabled = (explorePage + 1) * 20 >= exploreTotal;
         }
@@ -2370,10 +2591,12 @@
     async function installExploreResult(project, button) {
       if (!window.launcher) return;
       button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
       const originalLabel = button.textContent;
       button.textContent = 'Installing…';
+      document.body.dataset.operation = 'install';
       setStatus(project.type === 'modpack'
-        ? `Installing ${project.title} as a separate instance…`
+        ? `Installing ${project.title} into a new, separate instance…`
         : `Installing ${project.title} into ${current.name || 'this instance'}…`, 'busy');
       try {
         const result = await window.launcher.installExploreProject({
@@ -2381,29 +2604,16 @@
           type: project.type,
           projectId: project.id,
           title: project.title,
-          instance: currentInstanceReference(),
-          gameVersion: gameVersionSelect.value,
-          loaderType: loaderTypeSelect.value
+          ...(project.type === 'modpack'
+            ? { packGameVersion: modpackGameVersionSelect.value }
+            : {
+              instance: currentInstanceReference(),
+              gameVersion: gameVersionSelect.value,
+              loaderType: loaderTypeSelect.value
+            })
         });
         if (result.instance) {
-          const packProfile = {
-            id: crypto.randomUUID(),
-            instanceId: result.instance.id,
-            legacyInstance: false,
-            name: result.instance.name,
-            authMode: current.authMode,
-            username: current.username,
-            accountId: current.authMode === 'microsoft' ? selectedAccountId : '',
-            gameVersion: result.instance.gameVersion,
-            loaderType: result.instance.loaderType,
-            loaderVersion: result.instance.loaderVersion,
-            ram: Number(ramInput.value),
-            builtInMods: false
-          };
-          launchProfiles.push(packProfile);
-          savePersistentState();
-          renderSavedProfiles();
-          await activateProfile(packProfile);
+          await registerModpackInstance(result.instance);
         }
         updateExploreInstanceLabel();
         const fileCount = result.installedFileCount
@@ -2417,10 +2627,79 @@
       } catch (error) {
         setStatus(error.message || `Could not install ${project.title}.`, 'error');
       } finally {
+        delete document.body.dataset.operation;
         button.disabled = false;
+        button.removeAttribute('aria-busy');
         button.textContent = originalLabel;
       }
     }
+
+    async function registerModpackInstance(instance) {
+      const packProfile = {
+        id: crypto.randomUUID(),
+        instanceId: instance.id,
+        legacyInstance: false,
+        name: instance.name,
+        authMode: current.authMode,
+        username: current.username,
+        accountId: current.authMode === 'microsoft' ? selectedAccountId : '',
+        gameVersion: instance.gameVersion,
+        loaderType: instance.loaderType,
+        loaderVersion: instance.loaderVersion,
+        ram: Number(ramInput.value),
+        builtInMods: false
+      };
+      launchProfiles.push(packProfile);
+      savePersistentState();
+      renderSavedProfiles();
+      await activateProfile(packProfile);
+    }
+
+    exploreTypeSelect.addEventListener('change', () => {
+      const isModpack = exploreTypeSelect.value === 'modpack';
+      modpackGameVersionSelect.hidden = !isModpack;
+      exploreCompatibility.hidden = isModpack;
+      exploreVersionLabel.textContent = isModpack ? 'PACK MINECRAFT VERSION' : 'VERSION / LOADER';
+      exploreImportModpackButton.hidden = !isModpack;
+      updateExploreInstanceLabel();
+      explorePage = 0;
+      exploreResults.dataset.loaded = '';
+      runExploreSearch();
+    });
+
+    modpackGameVersionSelect.addEventListener('change', () => {
+      preferredPackGameVersion = modpackGameVersionSelect.value;
+      localStorage.setItem('4vill.modpackGameVersion', preferredPackGameVersion);
+      updateExploreInstanceLabel();
+      if (exploreTypeSelect.value === 'modpack') {
+        explorePage = 0;
+        runExploreSearch();
+      }
+    });
+
+    exploreImportModpackButton.addEventListener('click', async () => {
+      if (!window.launcher) return;
+      exploreImportModpackButton.disabled = true;
+      exploreImportModpackButton.setAttribute('aria-busy', 'true');
+      document.body.dataset.operation = 'install';
+      setStatus('Choose a Modrinth .mrpack file to import as a separate instance…', 'busy');
+      try {
+        const result = await window.launcher.importModpack();
+        if (!result) {
+          setStatus('Modpack import cancelled.', 'info');
+          return;
+        }
+        await registerModpackInstance(result.instance);
+        setStatus(`${result.title} imported as a new instance (${result.installedFileCount} files).`, 'success');
+        await refreshInstalledContent();
+      } catch (error) {
+        setStatus(error.message || 'Could not import this modpack.', 'error');
+      } finally {
+        delete document.body.dataset.operation;
+        exploreImportModpackButton.disabled = false;
+        exploreImportModpackButton.removeAttribute('aria-busy');
+      }
+    });
 
     exploreSearchButton.addEventListener('click', () => {
       explorePage = 0;
@@ -2431,11 +2710,6 @@
         explorePage = 0;
         runExploreSearch();
       }
-    });
-    exploreTypeSelect.addEventListener('change', () => {
-      explorePage = 0;
-      exploreResults.dataset.loaded = '';
-      runExploreSearch();
     });
     exploreSortSelect.addEventListener('change', () => {
       explorePage = 0;
@@ -2478,6 +2752,224 @@
     });
     setTheme(storedTheme);
 
+    const builtInBackgrounds = {
+      aurora: new URL('./assets/backgrounds/aurora-ridge.svg', window.location.href).href,
+      lunar: new URL('./assets/backgrounds/lunar-tide.svg', window.location.href).href,
+      ember: new URL('./assets/backgrounds/ember-dunes.svg', window.location.href).href,
+      forest: new URL('./assets/backgrounds/quiet-forest.svg', window.location.href).href
+    };
+    let personalization = {
+      background: 'default',
+      customText: '',
+      hasCustomBackground: false,
+      customBackgroundUrl: '',
+      musicName: '',
+      musicUrl: ''
+    };
+
+    function renderMusicState() {
+      const playing = !launcherAudio.paused && !launcherAudio.ended;
+      musicCard.classList.toggle('is-playing', playing);
+      musicPlayIcon.hidden = playing;
+      musicPauseIcon.hidden = !playing;
+      musicPlayButton.setAttribute('aria-label', playing ? 'Pause selected track' : 'Play selected track');
+      musicPlayButton.disabled = !personalization.musicUrl;
+      musicProgress.disabled = !personalization.musicUrl;
+      musicTrackName.textContent = personalization.musicName || 'Choose your own soundtrack';
+      clearMusicButton.hidden = !personalization.musicUrl;
+    }
+
+    function applyPersonalization(settings, preserveTextDraft = false) {
+      const textDraft = preserveTextDraft ? customLauncherTextInput.value : '';
+      personalization = { ...personalization, ...settings };
+      const backgroundUrl = personalization.background === 'custom'
+        ? personalization.customBackgroundUrl
+        : builtInBackgrounds[personalization.background];
+      document.documentElement.style.setProperty(
+        '--launcher-background-image',
+        backgroundUrl ? `url("${backgroundUrl}")` : 'none'
+      );
+      backgroundChoices.forEach((choice) => {
+        choice.setAttribute('aria-pressed', String(choice.dataset.background === personalization.background));
+      });
+      customBackgroundChoice.disabled = !personalization.hasCustomBackground;
+      resetBackgroundButton.hidden = !personalization.hasCustomBackground;
+      customBackgroundPreview.style.backgroundImage = personalization.customBackgroundUrl
+        ? `url("${personalization.customBackgroundUrl}")`
+        : 'linear-gradient(135deg, #273246, #151921)';
+      customLauncherTextInput.value = preserveTextDraft ? textDraft : personalization.customText || '';
+      defaultLauncherMessage.hidden = Boolean(personalization.customText);
+      customLauncherMessage.hidden = !personalization.customText;
+      customLauncherMessage.textContent = personalization.customText || '';
+
+      if (launcherAudio.src !== (personalization.musicUrl || '')) {
+        launcherAudio.pause();
+        launcherAudio.removeAttribute('src');
+        if (personalization.musicUrl) launcherAudio.src = personalization.musicUrl;
+        launcherAudio.load();
+        musicProgress.value = '0';
+        musicProgress.max = '0';
+        musicTime.textContent = '0:00';
+        musicDuration.textContent = '0:00';
+      }
+      renderMusicState();
+    }
+
+    function showPersonalizationStatus(message, kind = 'info') {
+      personalizationStatus.textContent = message;
+      personalizationStatus.dataset.kind = kind;
+    }
+
+    async function savePersonalization(patch) {
+      if (!window.launcher) return;
+      const next = {
+        background: patch.background || personalization.background,
+        customText: patch.customText === undefined ? personalization.customText : patch.customText
+      };
+      const saved = await window.launcher.savePersonalization(next);
+      applyPersonalization(saved, patch.customText === undefined);
+    }
+
+    backgroundChoices.forEach((choice) => {
+      choice.addEventListener('click', async () => {
+        try {
+          await savePersonalization({ background: choice.dataset.background });
+          showPersonalizationStatus(`${choice.querySelector('.background-name').textContent} background selected.`);
+        } catch (error) {
+          showPersonalizationStatus(error.message || 'Could not change the launcher background.', 'error');
+        }
+      });
+    });
+
+    saveLauncherTextButton.addEventListener('click', async () => {
+      saveLauncherTextButton.disabled = true;
+      try {
+        await savePersonalization({ customText: customLauncherTextInput.value.trim() });
+        showPersonalizationStatus(personalization.customText ? 'Welcome text saved.' : 'Welcome text cleared.', 'success');
+      } catch (error) {
+        showPersonalizationStatus(error.message || 'Could not save your welcome text.', 'error');
+      } finally {
+        saveLauncherTextButton.disabled = false;
+      }
+    });
+
+    chooseBackgroundButton.addEventListener('click', async () => {
+      chooseBackgroundButton.disabled = true;
+      try {
+        const selected = await window.launcher.choosePersonalizationBackground();
+        if (!selected) return;
+        applyPersonalization(selected, true);
+        showPersonalizationStatus('Custom background saved and resized for the launcher.', 'success');
+      } catch (error) {
+        showPersonalizationStatus(error.message || 'Could not use that image as a background.', 'error');
+      } finally {
+        chooseBackgroundButton.disabled = false;
+      }
+    });
+
+    resetBackgroundButton.addEventListener('click', async () => {
+      resetBackgroundButton.disabled = true;
+      try {
+        const updated = await window.launcher.clearPersonalizationBackground();
+        applyPersonalization(updated, true);
+        showPersonalizationStatus('Custom background removed. Your other settings are unchanged.', 'success');
+      } catch (error) {
+        showPersonalizationStatus(error.message || 'Could not remove the custom background.', 'error');
+      } finally {
+        resetBackgroundButton.disabled = false;
+      }
+    });
+
+    function formatAudioTime(seconds) {
+      if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+      const totalSeconds = Math.floor(seconds);
+      const minutes = Math.floor(totalSeconds / 60);
+      const remainingSeconds = String(totalSeconds % 60).padStart(2, '0');
+      return minutes > 59
+        ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${remainingSeconds}`
+        : `${minutes}:${remainingSeconds}`;
+    }
+
+    musicVolume.value = localStorage.getItem('4vill.musicVolume') || '.55';
+    if (!Number.isFinite(Number(musicVolume.value))) musicVolume.value = '.55';
+    launcherAudio.volume = Number(musicVolume.value);
+    launcherAudio.preload = 'none';
+    musicVolume.addEventListener('input', () => {
+      launcherAudio.volume = Number(musicVolume.value);
+      localStorage.setItem('4vill.musicVolume', musicVolume.value);
+    });
+    musicPlayButton.addEventListener('click', async () => {
+      try {
+        if (launcherAudio.paused) {
+          if (launcherAudio.ended) launcherAudio.currentTime = 0;
+          await launcherAudio.play();
+        } else {
+          launcherAudio.pause();
+        }
+      } catch (error) {
+        setStatus(error.message || 'Could not play this audio file.', 'error');
+        showPersonalizationStatus(error.message || 'Could not play this audio file.', 'error');
+      }
+    });
+    launcherAudio.addEventListener('play', renderMusicState);
+    launcherAudio.addEventListener('pause', renderMusicState);
+    launcherAudio.addEventListener('ended', renderMusicState);
+    launcherAudio.addEventListener('loadedmetadata', () => {
+      const duration = Number.isFinite(launcherAudio.duration) ? launcherAudio.duration : 0;
+      musicProgress.max = String(duration);
+      musicDuration.textContent = formatAudioTime(duration);
+    });
+    launcherAudio.addEventListener('timeupdate', () => {
+      musicProgress.value = String(launcherAudio.currentTime || 0);
+      musicTime.textContent = formatAudioTime(launcherAudio.currentTime);
+    });
+    launcherAudio.addEventListener('error', () => {
+      setStatus('This audio file could not be played. Try choosing another supported track.', 'error');
+      showPersonalizationStatus('This audio file could not be played. Try choosing another supported track.', 'error');
+      renderMusicState();
+    });
+    musicProgress.addEventListener('input', () => {
+      if (Number.isFinite(launcherAudio.duration)) launcherAudio.currentTime = Number(musicProgress.value);
+    });
+    chooseMusicButton.addEventListener('click', async () => {
+      const currentSettings = { ...personalization };
+      chooseMusicButton.disabled = true;
+      launcherAudio.pause();
+      launcherAudio.removeAttribute('src');
+      launcherAudio.load();
+      try {
+        const selected = await window.launcher.choosePersonalizationMusic();
+        if (!selected) {
+          applyPersonalization(currentSettings, true);
+          return;
+        }
+        applyPersonalization(selected, true);
+        showPersonalizationStatus('Track added. Press play when you are ready; nothing plays automatically.', 'success');
+      } catch (error) {
+        applyPersonalization(currentSettings, true);
+        showPersonalizationStatus(error.message || 'Could not add that audio file.', 'error');
+      } finally {
+        chooseMusicButton.disabled = false;
+      }
+    });
+    clearMusicButton.addEventListener('click', async () => {
+      const currentSettings = { ...personalization };
+      clearMusicButton.disabled = true;
+      launcherAudio.pause();
+      launcherAudio.removeAttribute('src');
+      launcherAudio.load();
+      try {
+        const updated = await window.launcher.clearPersonalizationMusic();
+        applyPersonalization(updated, true);
+        showPersonalizationStatus('Selected track removed.', 'success');
+      } catch (error) {
+        applyPersonalization(currentSettings, true);
+        showPersonalizationStatus(error.message || 'Could not remove the selected track.', 'error');
+      } finally {
+        clearMusicButton.disabled = false;
+      }
+    });
+
     function setStatus(message, kind = 'info') {
       statusText.textContent = message;
       statusLine.dataset.kind = kind;
@@ -2501,6 +2993,7 @@
     function resetLaunchControls() {
       isLaunching = false;
       cancelRequested = false;
+      delete document.body.dataset.operation;
       launchButton.disabled = false;
       launchButton.classList.remove('is-launching');
       launchLabel.textContent = 'LAUNCH GAME';
@@ -2554,12 +3047,55 @@
       }
     });
 
+    function renderDiscordSettings(settings) {
+      discordClientIdInput.value = settings.clientId || '';
+      discordEnabledInput.checked = settings.enabled === true;
+      discordShareServerInput.checked = settings.shareServer === true;
+      if (!['connected', 'disconnected', 'error'].includes(discordStatus.dataset.kind)) {
+        discordStatus.textContent = settings.enabled
+          ? 'Rich Presence is enabled. It will update when Minecraft is running.'
+          : 'Discord Rich Presence is disabled.';
+      }
+    }
+
+    function renderDiscordState(state) {
+      if (!state || typeof state.message !== 'string') return;
+      discordStatus.textContent = state.message;
+      discordStatus.dataset.kind = state.status;
+    }
+
+    saveDiscordSettingsButton.addEventListener('click', async () => {
+      if (!window.launcher) return;
+      saveDiscordSettingsButton.disabled = true;
+      discordStatus.textContent = 'Saving Discord settings…';
+      discordStatus.dataset.kind = 'busy';
+      try {
+        const settings = await window.launcher.saveDiscordSettings({
+          enabled: discordEnabledInput.checked,
+          clientId: discordClientIdInput.value.trim(),
+          shareServer: discordShareServerInput.checked
+        });
+        renderDiscordSettings(settings);
+      } catch (error) {
+        renderDiscordState({ status: 'error', message: error.message || 'Could not save Discord settings.' });
+      } finally {
+        saveDiscordSettingsButton.disabled = false;
+      }
+    });
+
     if (window.launcher) {
       window.launcher.onStatus(({ message, kind }) => {
         if (['success', 'error', 'cancelled'].includes(kind)) resetLaunchControls();
         setStatus(message, isLaunching && kind === 'info' ? 'busy' : kind);
       });
       window.launcher.onUpdateState(renderUpdateState);
+      window.launcher.onDiscordState(renderDiscordState);
+      window.launcher.getPersonalization().then(applyPersonalization).catch((error) => {
+        showPersonalizationStatus(error.message || 'Could not load launcher personalization.', 'error');
+      });
+      window.launcher.getDiscordSettings().then(renderDiscordSettings).catch((error) => {
+        renderDiscordState({ status: 'error', message: error.message || 'Could not load Discord settings.' });
+      });
       window.launcher.getUpdateStatus().then(renderUpdateState).catch((error) => {
         renderUpdateState({ status: 'error', message: error.message || 'Could not load update status.' });
       });
@@ -2594,6 +3130,7 @@
 
       isLaunching = true;
       cancelRequested = false;
+      document.body.dataset.operation = 'launch';
       launchButton.disabled = true;
       cancelLaunchButton.hidden = false;
       cancelLaunchButton.disabled = false;
@@ -2645,7 +3182,10 @@
       if (window.launcher) window.launcher.minimize();
     });
     document.getElementById('close-button').addEventListener('click', () => {
-      if (window.launcher) window.launcher.close();
+      document.body.classList.add('is-closing');
+      setTimeout(() => {
+        if (window.launcher) window.launcher.close();
+      }, 180);
     });
   </script>
 </body>

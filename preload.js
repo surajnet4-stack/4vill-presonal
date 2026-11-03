@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('launcher', {
   getLoaderVersions: (gameVersion, loader) => ipcRenderer.invoke('catalog:loader-versions', gameVersion, loader),
   searchExplore: (options) => ipcRenderer.invoke('explore:search', options),
   installExploreProject: (request) => ipcRenderer.invoke('explore:install', request),
+  importModpack: () => ipcRenderer.invoke('explore:import-modpack'),
   getInstalledContent: (instance) => ipcRenderer.invoke('explore:installed', instance),
   removeInstalledContent: (instance, key) => ipcRenderer.invoke('explore:remove', instance, key),
   getInstanceMods: (instance) => ipcRenderer.invoke('instance:list-mods', instance),
@@ -24,6 +25,14 @@ contextBridge.exposeInMainWorld('launcher', {
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),
   downloadUpdate: () => ipcRenderer.invoke('updater:download'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
+  getDiscordSettings: () => ipcRenderer.invoke('discord:settings:get'),
+  saveDiscordSettings: (settings) => ipcRenderer.invoke('discord:settings:set', settings),
+  getPersonalization: () => ipcRenderer.invoke('personalization:get'),
+  savePersonalization: (settings) => ipcRenderer.invoke('personalization:set', settings),
+  choosePersonalizationBackground: () => ipcRenderer.invoke('personalization:background:choose'),
+  clearPersonalizationBackground: () => ipcRenderer.invoke('personalization:background:clear'),
+  choosePersonalizationMusic: () => ipcRenderer.invoke('personalization:music:choose'),
+  clearPersonalizationMusic: () => ipcRenderer.invoke('personalization:music:clear'),
   importOptifineProfile: () => ipcRenderer.invoke('optifine:import'),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   close: () => ipcRenderer.invoke('window:close'),
@@ -36,5 +45,10 @@ contextBridge.exposeInMainWorld('launcher', {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('updater:state', listener);
     return () => ipcRenderer.removeListener('updater:state', listener);
+  },
+  onDiscordState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('discord:state', listener);
+    return () => ipcRenderer.removeListener('discord:state', listener);
   }
 });

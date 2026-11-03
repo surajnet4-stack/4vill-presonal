@@ -1,6 +1,7 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { Client } = require('minecraft-launcher-core');
+const DiscordRPC = require('discord-rpc');
 const { Authflow, Titles } = require('prismarine-auth');
 const AdmZip = require('adm-zip');
 const { spawn } = require('node:child_process');
@@ -9,6 +10,7 @@ const { pipeline } = require('node:stream/promises');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
+const { pathToFileURL } = require('node:url');
 const { isPathInside, resolveManagedPath } = require('./path-safety');
 const { ensureAzureResourcePack } = require('./azure-resource-pack');
 
@@ -49,6 +51,22 @@ let mainWindow;
 let launchInProgress = false;
 let activeLaunch = null;
 let gameProcessStarted = false;
+let discordSettings = { enabled: false, clientId: '', shareServer: false };
+let discordSettingsLoaded = false;
+let discordRpcClient = null;
+let discordRpcReady = false;
+let discordGameVersion = '';
+let discordServer = '';
+let discordGameStartedAt = null;
+const personalizationDefaults = {
+  background: 'default',
+  customText: '',
+  hasCustomBackground: false,
+  musicName: '',
+  musicExtension: ''
+};
+let launcherPersonalization = { ...personalizationDefaults };
+let launcherPersonalizationLoaded = false;
 let updaterConfigured = false;
 const updaterState = {
   status: 'idle',
@@ -63,6 +81,188 @@ function sendStatus(message, kind = 'info') {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('launcher:status', { message, kind });
   }
+}
+
+function sendDiscordState(status, message) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('discord:state', { status, message });
+  }
+}
+
+function getDiscordSettingsPath() {
+  return path.join(app.getPath('userData'), 'discord-presence.json');
+}
+
+function getPersonalizationSettingsPath() {
+  return path.join(app.getPath('userData'), 'launcher-personalization.json');
+}
+
+function getPersonalizationAssetPath(name) {
+  return path.join(app.getPath('userData'), name);
+}
+
+async function replaceFileAtomically(temporaryPath, destinationPath) {
+  try {
+    await fs.rename(temporaryPath, destinationPath);
+  } catch (error) {
+    await fs.rm(temporaryPath, { force: true });
+    throw error;
+  }
+}
+
+function getPersonalizationResponse() {
+  return {
+    ...launcherPersonalization,
+    customBackgroundUrl: launcherPersonalization.hasCustomBackground
+      ? pathToFileURL(getPersonalizationAssetPath('launcher-custom-background.png')).href
+      : '',
+    musicUrl: launcherPersonalization.musicExtension
+      ? pathToFileURL(getPersonalizationAssetPath(`launcher-track${launcherPersonalization.musicExtension}`)).href
+      : ''
+  };
+}
+
+async function savePersonalizationSettings() {
+  const filePath = getPersonalizationSettingsPath();
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  await fs.writeFile(temporaryPath, JSON.stringify(launcherPersonalization, null, 2), { flag: 'wx' });
+  await replaceFileAtomically(temporaryPath, filePath);
+}
+
+async function loadPersonalizationSettings() {
+  if (launcherPersonalizationLoaded) return getPersonalizationResponse();
+  try {
+    const saved = JSON.parse(await fs.readFile(getPersonalizationSettingsPath(), 'utf8'));
+    if (
+      !saved || !['default', 'aurora', 'lunar', 'ember', 'forest', 'custom'].includes(saved.background) ||
+      typeof saved.customText !== 'string' || saved.customText.length > 80 ||
+      typeof saved.hasCustomBackground !== 'boolean' || typeof saved.musicName !== 'string' ||
+      saved.musicName.length > 160 || typeof saved.musicExtension !== 'string' ||
+      (saved.musicExtension && !['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'].includes(saved.musicExtension))
+    ) {
+      throw new Error('Saved launcher personalization settings are invalid.');
+    }
+    launcherPersonalization = { ...personalizationDefaults, ...saved };
+    if (!launcherPersonalization.hasCustomBackground && launcherPersonalization.background === 'custom') {
+      launcherPersonalization.background = 'default';
+    }
+    if (launcherPersonalization.musicExtension) {
+      try {
+        await fs.access(getPersonalizationAssetPath(`launcher-track${launcherPersonalization.musicExtension}`));
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        launcherPersonalization.musicName = '';
+        launcherPersonalization.musicExtension = '';
+      }
+    }
+    if (launcherPersonalization.hasCustomBackground) {
+      try {
+        await fs.access(getPersonalizationAssetPath('launcher-custom-background.png'));
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        launcherPersonalization.hasCustomBackground = false;
+        if (launcherPersonalization.background === 'custom') launcherPersonalization.background = 'default';
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  launcherPersonalizationLoaded = true;
+  return getPersonalizationResponse();
+}
+
+async function loadDiscordSettings() {
+  if (discordSettingsLoaded) return discordSettings;
+  try {
+    const saved = JSON.parse(await fs.readFile(getDiscordSettingsPath(), 'utf8'));
+    if (
+      !saved || typeof saved.enabled !== 'boolean' || typeof saved.shareServer !== 'boolean' ||
+      typeof saved.clientId !== 'string' ||
+      (saved.clientId && !/^\d{17,20}$/.test(saved.clientId))
+    ) {
+      throw new Error('Saved Discord Rich Presence settings are invalid.');
+    }
+    discordSettings = {
+      enabled: saved.enabled,
+      clientId: saved.clientId,
+      shareServer: saved.shareServer
+    };
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  discordSettingsLoaded = true;
+  return discordSettings;
+}
+
+function updateDiscordActivity() {
+  if (!discordRpcClient || !discordRpcReady) return;
+  if (!discordSettings.enabled || !gameProcessStarted) {
+    discordRpcClient.clearActivity().catch((error) => {
+      sendDiscordState('error', `Could not clear Discord activity: ${error.message}`);
+    });
+    return;
+  }
+  const activity = {
+    details: `Minecraft ${discordGameVersion}`,
+    state: discordSettings.shareServer && discordServer ? `Server: ${discordServer}` : 'In game',
+    startTimestamp: discordGameStartedAt,
+    instance: false
+  };
+  discordRpcClient.setActivity(activity).catch((error) => {
+    sendDiscordState('error', `Could not update Discord activity: ${error.message}`);
+  });
+}
+
+async function configureDiscordPresence() {
+  if (discordRpcClient) {
+    const previousClient = discordRpcClient;
+    discordRpcClient = null;
+    discordRpcReady = false;
+    await previousClient.destroy();
+  }
+  if (!discordSettings.enabled) {
+    sendDiscordState('disabled', 'Discord Rich Presence is disabled.');
+    return;
+  }
+  try {
+    DiscordRPC.register(discordSettings.clientId);
+    const client = new DiscordRPC.Client({ transport: 'ipc' });
+    discordRpcClient = client;
+    client.on('ready', () => {
+      if (discordRpcClient !== client) return;
+      discordRpcReady = true;
+      sendDiscordState('connected', gameProcessStarted
+        ? 'Connected to Discord. Minecraft activity is live.'
+        : 'Connected to Discord. Activity starts when Minecraft launches.');
+      updateDiscordActivity();
+    });
+    client.on('error', (error) => {
+      sendDiscordState('error', `Discord Rich Presence error: ${error.message}`);
+    });
+    client.on('disconnected', () => {
+      if (discordRpcClient !== client) return;
+      discordRpcReady = false;
+      sendDiscordState('disconnected', 'Discord connection closed. Save settings to reconnect.');
+    });
+    await client.login({ clientId: discordSettings.clientId });
+  } catch (error) {
+    const failedClient = discordRpcClient;
+    discordRpcClient = null;
+    discordRpcReady = false;
+    if (failedClient) {
+      await failedClient.destroy().catch((disposeError) => {
+        console.error(`Could not close Discord RPC connection: ${disposeError.message}`);
+      });
+    }
+    sendDiscordState('error', `Could not connect to Discord: ${error.message}`);
+  }
+}
+
+function clearDiscordGameActivity() {
+  gameProcessStarted = false;
+  discordGameStartedAt = null;
+  discordServer = '';
+  updateDiscordActivity();
 }
 
 function createRequestSignal(timeoutMs, signal) {
@@ -114,6 +314,149 @@ ipcMain.handle('window:minimize', (event) => {
 
 ipcMain.handle('window:close', (event) => {
   if (mainWindow && event.sender === mainWindow.webContents) mainWindow.close();
+});
+
+ipcMain.handle('discord:settings:get', async (event) => {
+  assertMainWindowEvent(event, 'Discord settings');
+  return loadDiscordSettings();
+});
+
+ipcMain.handle('discord:settings:set', async (event, settings) => {
+  assertMainWindowEvent(event, 'Discord settings');
+  if (
+    !settings || typeof settings.enabled !== 'boolean' || typeof settings.shareServer !== 'boolean' ||
+    typeof settings.clientId !== 'string'
+  ) {
+    throw new Error('Invalid Discord Rich Presence settings.');
+  }
+  const clientId = settings.clientId.trim();
+  if (settings.enabled && !/^\d{17,20}$/.test(clientId)) {
+    throw new Error('Enter a valid Discord Application ID before enabling Rich Presence.');
+  }
+  discordSettings = {
+    enabled: settings.enabled,
+    clientId,
+    shareServer: settings.shareServer
+  };
+  await fs.writeFile(getDiscordSettingsPath(), JSON.stringify(discordSettings, null, 2));
+  discordSettingsLoaded = true;
+  await configureDiscordPresence();
+  return discordSettings;
+});
+
+ipcMain.handle('personalization:get', async (event) => {
+  assertMainWindowEvent(event, 'Launcher personalization');
+  return loadPersonalizationSettings();
+});
+
+ipcMain.handle('personalization:set', async (event, settings) => {
+  assertMainWindowEvent(event, 'Launcher personalization');
+  if (
+    !settings || !['default', 'aurora', 'lunar', 'ember', 'forest', 'custom'].includes(settings.background) ||
+    typeof settings.customText !== 'string' || settings.customText.length > 80
+  ) {
+    throw new Error('Invalid launcher personalization settings.');
+  }
+  await loadPersonalizationSettings();
+  if (settings.background === 'custom' && !launcherPersonalization.hasCustomBackground) {
+    throw new Error('Choose a custom background image first.');
+  }
+  launcherPersonalization.background = settings.background;
+  launcherPersonalization.customText = settings.customText.trim();
+  await savePersonalizationSettings();
+  return getPersonalizationResponse();
+});
+
+ipcMain.handle('personalization:background:choose', async (event) => {
+  assertMainWindowEvent(event, 'Custom launcher background');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose a launcher background',
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+
+  const sourcePath = result.filePaths[0];
+  const sourceStat = await fs.stat(sourcePath);
+  if (sourceStat.size > 20 * 1024 * 1024) {
+    throw new Error('Choose an image smaller than 20 MB.');
+  }
+  const image = nativeImage.createFromPath(sourcePath);
+  const { width, height } = image.getSize();
+  if (image.isEmpty() || width < 1 || height < 1 || width * height > 24000000) {
+    throw new Error('Choose a valid image with at most 24 megapixels.');
+  }
+  const scale = Math.min(1, 1920 / width, 1080 / height);
+  const resizedImage = scale < 1
+    ? image.resize({
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale)),
+      quality: 'good'
+    })
+    : image;
+  const destinationPath = getPersonalizationAssetPath('launcher-custom-background.png');
+  const temporaryPath = `${destinationPath}.${randomUUID()}.tmp`;
+  await fs.writeFile(temporaryPath, resizedImage.toPNG(), { flag: 'wx' });
+  await replaceFileAtomically(temporaryPath, destinationPath);
+  await loadPersonalizationSettings();
+  launcherPersonalization.hasCustomBackground = true;
+  launcherPersonalization.background = 'custom';
+  await savePersonalizationSettings();
+  return getPersonalizationResponse();
+});
+
+ipcMain.handle('personalization:background:clear', async (event) => {
+  assertMainWindowEvent(event, 'Remove custom launcher background');
+  await loadPersonalizationSettings();
+  await fs.rm(getPersonalizationAssetPath('launcher-custom-background.png'), { force: true });
+  launcherPersonalization.hasCustomBackground = false;
+  if (launcherPersonalization.background === 'custom') launcherPersonalization.background = 'default';
+  await savePersonalizationSettings();
+  return getPersonalizationResponse();
+});
+
+ipcMain.handle('personalization:music:choose', async (event) => {
+  assertMainWindowEvent(event, 'Launcher music');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose a music track',
+    properties: ['openFile'],
+    filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+
+  const sourcePath = result.filePaths[0];
+  const extension = path.extname(sourcePath).toLowerCase();
+  if (!['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'].includes(extension)) {
+    throw new Error('Choose an MP3, WAV, OGG, M4A, AAC, or FLAC audio file.');
+  }
+  const sourceStat = await fs.stat(sourcePath);
+  if (sourceStat.size < 1 || sourceStat.size > 30 * 1024 * 1024) {
+    throw new Error('Choose a non-empty audio file smaller than 30 MB.');
+  }
+  await loadPersonalizationSettings();
+  const destinationPath = getPersonalizationAssetPath(`launcher-track${extension}`);
+  const temporaryPath = `${destinationPath}.${randomUUID()}.tmp`;
+  await fs.copyFile(sourcePath, temporaryPath, fsSync.constants.COPYFILE_EXCL);
+  await replaceFileAtomically(temporaryPath, destinationPath);
+  if (launcherPersonalization.musicExtension && launcherPersonalization.musicExtension !== extension) {
+    await fs.rm(getPersonalizationAssetPath(`launcher-track${launcherPersonalization.musicExtension}`), { force: true });
+  }
+  launcherPersonalization.musicName = path.basename(sourcePath).slice(0, 160);
+  launcherPersonalization.musicExtension = extension;
+  await savePersonalizationSettings();
+  return getPersonalizationResponse();
+});
+
+ipcMain.handle('personalization:music:clear', async (event) => {
+  assertMainWindowEvent(event, 'Clear launcher music');
+  await loadPersonalizationSettings();
+  if (launcherPersonalization.musicExtension) {
+    await fs.rm(getPersonalizationAssetPath(`launcher-track${launcherPersonalization.musicExtension}`), { force: true });
+  }
+  launcherPersonalization.musicName = '';
+  launcherPersonalization.musicExtension = '';
+  await savePersonalizationSettings();
+  return getPersonalizationResponse();
 });
 
 function publishUpdaterState(status, message, version = updaterState.version) {
@@ -348,6 +691,24 @@ async function searchExploreCatalog(event, options) {
       options.provider !== 'modrinth') {
     throw new Error('Choose a valid provider and content type.');
   }
+  const query = typeof options.query === 'string' ? options.query.trim().slice(0, 100) : '';
+  const searchOptions = {
+    ...options,
+    query,
+    sort: typeof options.sort === 'string' ? options.sort : 'relevance',
+    offset: Number.isInteger(options.offset) ? Math.max(0, Math.min(options.offset, 10000)) : 0
+  };
+  if (options.type === 'modpack') {
+    if (typeof options.packGameVersion !== 'string' ||
+        !/^\d+\.\d+(?:\.\d+)?$/.test(options.packGameVersion)) {
+      throw new Error('Choose a Minecraft version for modpack discovery.');
+    }
+    return searchModrinth({
+      ...searchOptions,
+      gameVersion: searchOptions.packGameVersion,
+      loaderType: 'vanilla'
+    });
+  }
   validateInstanceReference(options.instance);
   if (options.type === 'mod' && !['fabric', 'forge'].includes(options.instance.loaderType)) {
     throw new Error('Choose a Fabric or Forge instance to browse and install mods. Resource packs, shaders, and modpacks can use other instance types.');
@@ -356,13 +717,6 @@ async function searchExploreCatalog(event, options) {
       options.loaderType !== options.instance.loaderType) {
     throw new Error('Search filters must match the selected instance.');
   }
-  const query = typeof options.query === 'string' ? options.query.trim().slice(0, 100) : '';
-  const searchOptions = {
-    ...options,
-    query,
-    sort: typeof options.sort === 'string' ? options.sort : 'relevance',
-    offset: Number.isInteger(options.offset) ? Math.max(0, Math.min(options.offset, 10000)) : 0
-  };
   return searchModrinth(searchOptions);
 }
 
@@ -404,7 +758,7 @@ function getContentDirectory(instanceDirectory, type) {
   return instanceDirectory;
 }
 
-async function downloadContentFile(url, expectedHashes = {}, signal) {
+async function downloadContentFile(url, expectedHashes = {}, signal, maxBytes = 1024 * 1024 * 1024) {
   let parsedUrl;
   try {
     parsedUrl = new URL(url);
@@ -429,10 +783,12 @@ async function downloadContentFile(url, expectedHashes = {}, signal) {
   if (!response) throw new Error('Could not retrieve the project download.');
   if (!response.ok) throw new Error(`Project download failed (HTTP ${response.status}).`);
   const declaredLength = Number(response.headers.get('content-length') || 0);
-  if (declaredLength > 1024 * 1024 * 1024) throw new Error('The project file is larger than the 1 GB install limit.');
+  if (declaredLength > maxBytes) {
+    throw new Error(`The project file exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB install limit.`);
+  }
   const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > 1024 * 1024 * 1024) {
-    throw new Error('The downloaded project file is empty or exceeds the 1 GB install limit.');
+  if (bytes.length === 0 || bytes.length > maxBytes) {
+    throw new Error(`The downloaded project file is empty or exceeds the ${Math.floor(maxBytes / (1024 * 1024))} MB install limit.`);
   }
   for (const [algorithm, expected] of Object.entries(expectedHashes)) {
     if (!['sha1', 'sha512'].includes(algorithm) || typeof expected !== 'string') continue;
@@ -602,25 +958,111 @@ function parseMrpackFiles(zip) {
   return { manifest, files };
 }
 
-async function prepareModpackFiles(version, stagingDirectory) {
-  const packFile = getVersionFile(version);
-  if (!packFile || !packFile.url) throw new Error('Modrinth did not provide a modpack download.');
-  const packBytes = await downloadContentFile(packFile.url);
-  const zip = new AdmZip(packBytes);
+async function prepareModpackArchive(zip, stagingDirectory) {
   const { manifest, files } = parseMrpackFiles(zip);
   if (files.length > 1000) throw new Error('This modpack has too many files to install (limit: 1,000).');
-  const prepared = [];
-  for (const [index, file] of files.entries()) {
-    sendStatus(`Preparing modpack files: ${index + 1} of ${files.length}`);
-    const stagedPath = resolveManagedPath(stagingDirectory, file.path);
-    await ensureSafeInstanceDirectory(stagingDirectory, path.dirname(stagedPath));
-    const bytes = file.zipEntry
-      ? file.zipEntry.getData()
-      : await downloadContentFile(file.url, file.hashes);
-    await fs.writeFile(stagedPath, bytes);
-    prepared.push({ path: file.path, stagedPath });
+  if (new Set(files.map((file) => file.path)).size !== files.length) {
+    throw new Error('This modpack contains duplicate file paths.');
+  }
+  const prepared = new Array(files.length);
+  let completed = 0;
+  for (let offset = 0; offset < files.length; offset += 2) {
+    const results = await Promise.allSettled(files.slice(offset, offset + 2).map(async (file, batchIndex) => {
+      const stagedPath = resolveManagedPath(stagingDirectory, file.path);
+      await ensureSafeInstanceDirectory(stagingDirectory, path.dirname(stagedPath));
+      const bytes = file.zipEntry
+        ? file.zipEntry.getData()
+        : await downloadContentFile(file.url, file.hashes, undefined, 256 * 1024 * 1024);
+      await fs.writeFile(stagedPath, bytes, { flag: 'wx' });
+      prepared[offset + batchIndex] = { path: file.path, stagedPath, sha256: createHash('sha256').update(bytes).digest('hex') };
+      completed += 1;
+      sendStatus(`Preparing modpack files: ${completed} of ${files.length}`);
+    }));
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure) throw failure.reason;
   }
   return { manifest, prepared };
+}
+
+async function createModpackInstance(paths, packBytes, fallbackName, versionId = '', expectedGameVersion = '') {
+  if (!Buffer.isBuffer(packBytes) || packBytes.length < 4 ||
+      packBytes[0] !== 0x50 || packBytes[1] !== 0x4b) {
+    throw new Error('The selected file is not a valid Modrinth .mrpack archive.');
+  }
+  const archive = new AdmZip(packBytes);
+  const instanceId = randomUUID();
+  const instanceDirectory = path.join(paths.instances, instanceId);
+  let installationComplete = false;
+  await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
+  const stagingDirectory = await fs.mkdtemp(path.join(instanceDirectory, '.4vill-install-'));
+  try {
+    const { manifest, prepared } = await prepareModpackArchive(archive, stagingDirectory);
+    const configuration = getPackConfiguration(manifest);
+    if (expectedGameVersion && configuration.gameVersion !== expectedGameVersion) {
+      throw new Error(
+        `This modpack release targets Minecraft ${configuration.gameVersion}, not ${expectedGameVersion}.`
+      );
+    }
+    const title = typeof manifest.name === 'string' && manifest.name.trim()
+      ? manifest.name.trim().slice(0, 120)
+      : fallbackName.trim().slice(0, 120) || 'Imported Modpack';
+    const installedFiles = [];
+    for (const file of prepared) {
+      const destination = resolveManagedPath(instanceDirectory, file.path);
+      await ensureSafeInstanceDirectory(instanceDirectory, path.dirname(destination));
+      await fs.copyFile(file.stagedPath, destination, fsSync.constants.COPYFILE_EXCL);
+      installedFiles.push({ path: file.path, sha256: file.sha256 });
+    }
+    await writeManagedContent(instanceDirectory, [{
+      key: `modrinth:modpack:${randomUUID()}`,
+      provider: 'modrinth',
+      type: 'modpack',
+      projectId: '',
+      title,
+      versionId,
+      files: installedFiles
+    }]);
+    installationComplete = true;
+    return {
+      installed: true,
+      title,
+      installedFileCount: installedFiles.length,
+      instance: {
+        ...configuration,
+        id: instanceId,
+        name: title,
+        legacy: false,
+        builtInMods: false
+      }
+    };
+  } finally {
+    await fs.rm(stagingDirectory, { recursive: true, force: true });
+    if (!installationComplete) {
+      await fs.rm(instanceDirectory, { recursive: true, force: true });
+    }
+  }
+}
+
+async function importModpackArchive(event) {
+  assertMainWindowEvent(event, 'Modpack import');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import a Modrinth modpack',
+    properties: ['openFile'],
+    filters: [{ name: 'Modrinth modpack', extensions: ['mrpack'] }]
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const sourcePath = result.filePaths[0];
+  const stats = await fs.lstat(sourcePath);
+  if (!stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error('Choose a regular .mrpack file, not a folder or symbolic link.');
+  }
+  if (stats.size > 512 * 1024 * 1024) {
+    throw new Error('The selected modpack exceeds the 512 MB import limit.');
+  }
+  sendStatus(`Importing ${path.basename(sourcePath)}...`);
+  const packBytes = await fs.readFile(sourcePath);
+  return createModpackInstance(getDataPaths(), packBytes, path.parse(sourcePath).name);
 }
 
 async function installExploreProject(event, request) {
@@ -630,6 +1072,38 @@ async function installExploreProject(event, request) {
       typeof request.projectId !== 'string' ||
       !/^[A-Za-z0-9_-]{1,80}$/.test(request.projectId)) {
     throw new Error('Choose a valid project to install.');
+  }
+  if (request.type === 'modpack') {
+    if (typeof request.packGameVersion !== 'string' ||
+        !/^\d+\.\d+(?:\.\d+)?$/.test(request.packGameVersion)) {
+      throw new Error('Choose the Minecraft version to use when selecting a modpack release.');
+    }
+    const version = await getExploreProjectFile({
+      ...request,
+      gameVersion: request.packGameVersion,
+      loaderType: 'vanilla'
+    });
+    if (!version) {
+      throw new Error(`No modpack release supports Minecraft ${request.packGameVersion}.`);
+    }
+    const packFile = getVersionFile(version);
+    if (!packFile || typeof packFile.url !== 'string') {
+      throw new Error('Modrinth did not provide a downloadable modpack file.');
+    }
+    sendStatus(`Downloading ${request.title || 'modpack'}...`);
+    const packBytes = await downloadContentFile(
+      packFile.url,
+      packFile.hashes || {},
+      undefined,
+      512 * 1024 * 1024
+    );
+    return createModpackInstance(
+      getDataPaths(),
+      packBytes,
+      typeof request.title === 'string' ? request.title : 'Imported Modpack',
+      String(version.id || ''),
+      request.packGameVersion
+    );
   }
   validateInstanceReference(request.instance);
   if (request.type === 'mod' && !['fabric', 'forge'].includes(request.instance.loaderType)) {
@@ -652,9 +1126,7 @@ async function installExploreProject(event, request) {
   }
 
   const title = typeof request.title === 'string' ? request.title.slice(0, 120) : 'Minecraft content';
-  const targetInstance = request.type === 'modpack'
-    ? { ...request.instance, id: randomUUID(), legacy: false }
-    : request.instance;
+  const targetInstance = request.instance;
   const instanceDirectory = getInstanceDirectory(paths, targetInstance);
   await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
   const managedItems = await readManagedContent(instanceDirectory);
@@ -663,24 +1135,17 @@ async function installExploreProject(event, request) {
   try {
     let prepared;
     let targetDirectory;
-    let updatedConfiguration = null;
-    if (request.type === 'modpack') {
-      prepared = await prepareModpackFiles(version, stagingDirectory);
-      updatedConfiguration = getPackConfiguration(prepared.manifest);
-      targetDirectory = instanceDirectory;
-    } else {
-      const file = getVersionFile(version);
-      if (!file || typeof file.url !== 'string') {
-        throw new Error('The provider did not provide a downloadable project file.');
-      }
-      const fileName = path.basename(file.filename || file.url.split('?')[0]);
-      if (!fileName || fileName === '.' || fileName === '..') throw new Error('The provider returned an invalid filename.');
-      const stagedPath = path.join(stagingDirectory, fileName);
-      sendStatus(`Downloading ${title}...`);
-      await fs.writeFile(stagedPath, await downloadContentFile(file.url, file.hashes || {}));
-      prepared = { manifest: null, prepared: [{ path: fileName, stagedPath }] };
-      targetDirectory = getContentDirectory(instanceDirectory, request.type);
+    const file = getVersionFile(version);
+    if (!file || typeof file.url !== 'string') {
+      throw new Error('The provider did not provide a downloadable project file.');
     }
+    const fileName = path.basename(file.filename || file.url.split('?')[0]);
+    if (!fileName || fileName === '.' || fileName === '..') throw new Error('The provider returned an invalid filename.');
+    const stagedPath = path.join(stagingDirectory, fileName);
+    sendStatus(`Downloading ${title}...`);
+    await fs.writeFile(stagedPath, await downloadContentFile(file.url, file.hashes || {}));
+    prepared = { manifest: null, prepared: [{ path: fileName, stagedPath }] };
+    targetDirectory = getContentDirectory(instanceDirectory, request.type);
 
     const managedPaths = new Set(
       (previousItem && Array.isArray(previousItem.files) ? previousItem.files : [])
@@ -710,10 +1175,9 @@ async function installExploreProject(event, request) {
     for (const stagedFile of prepared.prepared) {
       const destination = resolveManagedPath(targetDirectory, stagedFile.path);
       await fs.copyFile(stagedFile.stagedPath, destination);
-      const fileBytes = await fs.readFile(destination);
       installedFiles.push({
         path: stagedFile.path,
-        sha256: createHash('sha256').update(fileBytes).digest('hex')
+        sha256: createHash('sha256').update(await fs.readFile(destination)).digest('hex')
       });
     }
     const nextItems = managedItems.filter((item) => item.key !== contentKey);
@@ -750,15 +1214,7 @@ async function installExploreProject(event, request) {
       title,
       version: version.name || version.version_number || version.displayName || '',
       installedFileCount: installedFiles.length,
-      instance: updatedConfiguration
-        ? {
-            ...updatedConfiguration,
-            id: targetInstance.id,
-            name: title,
-            legacy: false,
-            builtInMods: false
-          }
-        : null
+      instance: null
     };
   } finally {
     await fs.rm(stagingDirectory, { recursive: true, force: true });
@@ -1657,6 +2113,8 @@ ipcMain.handle('explore:search', (event, options) => searchExploreCatalog(event,
 
 ipcMain.handle('explore:install', (event, request) => installExploreProject(event, request));
 
+ipcMain.handle('explore:import-modpack', (event) => importModpackArchive(event));
+
 ipcMain.handle('explore:installed', (event, instance) => listInstalledContent(event, instance));
 
 ipcMain.handle('explore:remove', (event, instance, key) => removeInstalledContent(event, instance, key));
@@ -2004,8 +2462,18 @@ function connectLauncherEvents(launcher) {
     const text = Buffer.isBuffer(data) ? data.toString() : String(data);
     if (!text.trim()) return;
     recentOutput = `${recentOutput}${text}`.slice(-12000);
+    const connection = text.match(/Connecting to\s+([^\s,]+)(?:,\s*(\d+))?/i);
+    if (connection) {
+      discordServer = `${connection[1]}${connection[2] ? `:${connection[2]}` : ''}`;
+      updateDiscordActivity();
+    } else if (/Disconnected from server|Disconnecting from server/i.test(text)) {
+      discordServer = '';
+      updateDiscordActivity();
+    }
     if (!gameProcessStarted && /(Setting user:|LWJGL Version:|Backend library:|OpenAL initialized)/i.test(text)) {
       gameProcessStarted = true;
+      discordGameStartedAt = Date.now();
+      updateDiscordActivity();
       sendStatus('Game Running! The launcher will stay open while you play.', 'success');
     }
   });
@@ -2013,6 +2481,7 @@ function connectLauncherEvents(launcher) {
   launcher.on('close', (code) => {
     if (launch.cancelled) {
       sendStatus('Launch cancelled. Minecraft was stopped.', 'cancelled');
+      clearDiscordGameActivity();
       launchInProgress = false;
       activeLaunch = null;
       return;
@@ -2024,12 +2493,14 @@ function connectLauncherEvents(launcher) {
         'error'
       );
     }
+    clearDiscordGameActivity();
     launchInProgress = false;
     activeLaunch = null;
   });
 
   launcher.on('error', (error) => {
     sendStatus(`Launcher error: ${error.message}`, 'error');
+    clearDiscordGameActivity();
     launchInProgress = false;
     activeLaunch = null;
   });
@@ -2043,8 +2514,16 @@ ipcMain.handle('launcher:start', async (event, options) => {
     throw new Error('A launch is already in progress.');
   }
   validateLaunchOptions(options);
+  if (discordSettings.enabled && !discordRpcClient) {
+    configureDiscordPresence().catch((error) => {
+      sendDiscordState('error', `Could not connect to Discord: ${error.message}`);
+    });
+  }
   launchInProgress = true;
   gameProcessStarted = false;
+  discordGameVersion = options.gameVersion;
+  discordServer = '';
+  discordGameStartedAt = null;
   const launch = {
     cancelled: false,
     abortController: new AbortController(),
@@ -2151,6 +2630,7 @@ ipcMain.handle('launcher:start', async (event, options) => {
   } catch (error) {
     launchInProgress = false;
     activeLaunch = null;
+    clearDiscordGameActivity();
     if (launch.cancelled || error.code === 'LAUNCH_CANCELLED') {
       sendStatus('Launch cancelled. No further game downloads will be started.', 'cancelled');
       throw createLaunchCancelledError();
@@ -2175,10 +2655,30 @@ ipcMain.handle('launcher:stop', (event) => {
   return { stopped: true };
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setName('Azure Personal');
   createWindow();
+  try {
+    await loadDiscordSettings();
+    if (discordSettings.enabled) {
+      configureDiscordPresence().catch((error) => {
+        sendDiscordState('error', `Could not connect to Discord: ${error.message}`);
+      });
+    }
+  } catch (error) {
+    sendDiscordState('error', `Could not load Discord Rich Presence settings: ${error.message}`);
+  }
   setTimeout(configureAutoUpdates, 3500);
+});
+
+app.on('before-quit', () => {
+  if (discordRpcClient) {
+    discordRpcClient.destroy().catch((error) => {
+      console.error(`Could not close Discord RPC connection: ${error.message}`);
+    });
+    discordRpcClient = null;
+    discordRpcReady = false;
+  }
 });
 
 function configureAutoUpdates() {
