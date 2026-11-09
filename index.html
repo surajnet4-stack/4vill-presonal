@@ -291,6 +291,7 @@
     }
     .page-heading > div { position: relative; }
     .page-heading h1 { text-shadow: 0 4px 24px color-mix(in srgb, var(--accent) 12%, transparent); }
+    .page-heading .back-button { min-height: 32px; }
     .overline { margin: 0 0 5px; color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
     h1, h2, h3, p { margin-top: 0; }
     h1 { margin-bottom: 0; font-size: 21px; font-weight: 680; letter-spacing: -.04em; }
@@ -493,12 +494,44 @@
     .music-card.is-playing .music-visualizer i:nth-child(3n) { animation-delay: -.55s; }
     @keyframes music-wave { to { height: 17px; opacity: .55; } }
     .player-preview { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-    .player-skin { width: 52px; height: 68px; flex: none; object-fit: contain; image-rendering: pixelated; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
-    .skin-placeholder { display: grid; width: 52px; height: 68px; flex: none; place-content: center; justify-items: center; gap: 2px; border-radius: 8px; background: linear-gradient(145deg, var(--surface-soft), var(--surface)); }
-    .skin-placeholder span { display: block; background: #9a704c; image-rendering: pixelated; }
-    .skin-placeholder .skin-head { width: 20px; height: 20px; border: 3px solid #61442f; background: #c99a6d; }
-    .skin-placeholder .skin-body { width: 23px; height: 20px; background: #3975d5; }
-    .skin-placeholder .skin-legs { width: 23px; height: 14px; background: linear-gradient(90deg, #273c5b 0 46%, transparent 46% 54%, #273c5b 54%); }
+    .avatar-showcase {
+      position: absolute;
+      z-index: 0;
+      top: 50%;
+      right: 7%;
+      display: grid;
+      width: 188px;
+      justify-items: center;
+      transform: translateY(-45%);
+      pointer-events: none;
+    }
+    .avatar-stage { position: relative; width: 184px; height: 220px; perspective: 700px; pointer-events: auto; }
+    .avatar-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .18s ease-out; }
+    .avatar-figure { position: absolute; inset: 0; transform-style: preserve-3d; animation: avatar-float 3.2s ease-in-out infinite; }
+    @keyframes avatar-float { 50% { translate: 0 -5px; } }
+    .avatar-pivot.is-spinning .avatar-figure { animation: avatar-spin .65s ease-in-out; }
+    @keyframes avatar-spin { to { transform: rotateY(360deg); } }
+    .avatar-part { position: absolute; left: 50%; transform-style: preserve-3d; }
+    .avatar-cuboid { position: absolute; left: 50%; width: var(--part-width); height: var(--part-height); transform-style: preserve-3d; }
+    .avatar-cuboid.centered { top: 0; transform: translate(-50%, -50%); }
+    .avatar-cuboid.hanging { top: 0; transform: translateX(-50%); }
+    .avatar-face { position: absolute; top: 50%; left: 50%; image-rendering: pixelated; background-image: var(--avatar-skin-image, none); background-repeat: no-repeat; backface-visibility: hidden; }
+    .avatar-face.front { transform: translate(-50%, -50%) translateZ(var(--depth-half)); }
+    .avatar-face.back { transform: translate(-50%, -50%) rotateY(180deg) translateZ(var(--width-half)); }
+    .avatar-face.right { transform: translate(-50%, -50%) rotateY(90deg) translateZ(var(--width-half)); }
+    .avatar-face.left { transform: translate(-50%, -50%) rotateY(-90deg) translateZ(var(--width-half)); }
+    .avatar-face.top { transform: translate(-50%, -50%) rotateX(90deg) translateZ(var(--height-half)); }
+    .avatar-face.bottom { transform: translate(-50%, -50%) rotateX(-90deg) translateZ(var(--height-half)); }
+    .avatar-part.arm .avatar-cuboid { transform-origin: 50% 0; }
+    .avatar-part.arm-left .avatar-cuboid { animation: avatar-arm-left 2.6s ease-in-out infinite; }
+    .avatar-part.arm-right .avatar-cuboid { animation: avatar-arm-right 2.6s ease-in-out infinite; }
+    @keyframes avatar-arm-left { 50% { rotate: 0 0 1 4deg; } }
+    @keyframes avatar-arm-right { 50% { rotate: 0 0 1 -4deg; } }
+    .avatar-summary { z-index: 1; max-width: 188px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.13); border-radius: 9px; color: #fff; background: rgba(8,10,14,.62); text-align: center; pointer-events: auto; backdrop-filter: blur(7px); }
+    .avatar-summary strong { display: block; max-width: 165px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .avatar-summary span { display: block; margin-top: 3px; color: rgba(245,243,236,.72); font-size: 8px; }
+    .avatar-interaction { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; cursor: grab; }
+    .avatar-interaction:active { cursor: grabbing; }
     .player-preview-copy { min-width: 0; flex: 1; }
     .player-preview-copy strong { display: block; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
     .player-preview-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 8px; }
@@ -510,7 +543,15 @@
     .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, .78fr); gap: 11px; }
     .settings-card { padding: 16px; }
     .settings-card > p { margin: 0 0 16px; color: var(--muted); font-size: 10px; line-height: 1.55; }
-    .update-card, .personalization-card { grid-column: 1 / -1; }
+    .update-card, .personalization-card, .changelog-card, .advisor-card { grid-column: 1 / -1; }
+    .changelog-list { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+    .changelog-list li { position: relative; padding-left: 17px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .changelog-list li::before { position: absolute; top: 5px; left: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ""; }
+    .advisor-prompt { min-height: 68px; padding: 10px 11px; resize: vertical; }
+    .advisor-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .advisor-actions .tiny { margin: 0; }
+    .advisor-status { min-height: 14px; margin: 8px 0 0 !important; color: var(--muted); font-size: 9px !important; }
+    .advisor-status[data-kind="error"] { color: var(--danger); }
     .personalization-controls { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(220px, .85fr); gap: 18px; }
     .background-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
     .background-choice { min-width: 0; padding: 5px; border: 1px solid var(--stroke); border-radius: 9px; color: var(--muted); background: var(--surface); cursor: pointer; text-align: left; }
@@ -722,6 +763,8 @@
       .content { padding: 10px; }
       .play-grid { grid-template-columns: minmax(0, 1fr) 205px; gap: 8px; }
       .hero { min-height: 285px; padding: 15px; }
+      .hero-copy { max-width: 58%; }
+      .avatar-showcase { right: 3%; transform: translateY(-45%) scale(.82); transform-origin: center right; }
       .bottom-grid { gap: 8px; margin-top: 8px; }
       .personalization-controls { grid-template-columns: 1fr; }
       .background-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -729,6 +772,9 @@
     @media (max-width: 800px) {
       .music-player { grid-template-columns: auto minmax(0, 1fr); }
       .music-actions { grid-column: 1 / -1; justify-content: flex-end; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .avatar-figure, .avatar-part.arm-left .avatar-cuboid, .avatar-part.arm-right .avatar-cuboid { animation: none; }
     }
 
     @media (max-height: 680px) {
@@ -809,7 +855,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>UPDATE</span>
         </button>
-        <span class="build-label">v1.0.6</span>
+        <span class="build-label">v1.0.7</span>
       </nav>
 
       <main class="content">
@@ -832,6 +878,20 @@
                 <h2 class="hero-title">Make it your world.</h2>
                 <p class="hero-description" id="default-launcher-message">A clean, focused home for your Minecraft sessions. Set your profile, tune memory, and jump back in.</p>
                 <p class="hero-description custom-message" id="custom-launcher-message" aria-live="polite" hidden></p>
+              </div>
+              <div class="avatar-showcase" aria-label="Player preview">
+                <div class="avatar-stage">
+                  <div class="avatar-pivot" id="player-avatar-pivot">
+                    <div class="avatar-figure" id="player-avatar-figure" aria-hidden="true"></div>
+                  </div>
+                  <button class="avatar-interaction" id="player-avatar-interaction" type="button" aria-label="Turn your player model">
+                    <span class="sr-only">Move your pointer or use the arrow keys to rotate the player model. Activate to spin.</span>
+                  </button>
+                </div>
+                <div class="avatar-summary">
+                  <strong id="player-name">Local profile</strong>
+                  <span id="player-skin-status">Choose a skin in Profiles.</span>
+                </div>
               </div>
               <div class="hero-actions">
                 <button class="launch-button" id="launch-button" type="button">
@@ -906,13 +966,12 @@
             <section class="info-card">
               <h2>Your session</h2>
               <div class="player-preview">
-                <div class="skin-placeholder" id="player-skin-placeholder" aria-hidden="true"><span class="skin-head"></span><span class="skin-body"></span><span class="skin-legs"></span></div>
-                <canvas class="player-skin" id="player-skin" width="64" height="128" role="img" aria-label="Minecraft player avatar" hidden></canvas>
                 <div class="player-preview-copy">
-                  <strong id="player-name">Local profile</strong>
-                  <span id="player-skin-status">Choose an account to preview its skin.</span>
+                  <strong id="session-profile-name">Local profile</strong>
+                  <span id="session-profile-details">Minecraft 1.20.1 · Fabric</span>
                 </div>
                 <button class="secondary-button" id="change-skin-home" type="button">Change skin</button>
+                <button class="secondary-button" id="open-profiles-home" type="button">Profiles</button>
               </div>
             </section>
             <section class="info-card music-card" id="music-card" aria-label="Launcher music player">
@@ -1074,6 +1133,17 @@
             <strong id="explore-instance-label">Current instance · Minecraft 1.20.1</strong>
             <button class="secondary-button" id="explore-switch-instance" type="button">Choose instance</button>
           </div>
+          <section class="settings-card advisor-card" aria-labelledby="playstyle-heading">
+            <h2 id="playstyle-heading">Local Playstyle Assistant</h2>
+            <p>Describe how you want to play. A local keyword matcher selects Minecraft-version-compatible Modrinth modpacks, mods, or world datapacks; it is not a generative AI model. Modrinth receives the generated search terms.</p>
+            <label class="sr-only" for="playstyle-prompt">Describe the Minecraft experience you want</label>
+            <textarea class="text-input advisor-prompt" id="playstyle-prompt" maxlength="180" placeholder="For example: a cozy exploration adventure with friends and new structures"></textarea>
+            <div class="advisor-actions">
+              <button class="secondary-button" id="find-playstyle-button" type="button">Find suggestions</button>
+              <span class="tiny muted">Suggestions only; you choose what to install.</span>
+            </div>
+            <p class="advisor-status" id="playstyle-status" role="status" aria-live="polite"></p>
+          </section>
           <div class="explore-controls">
             <div class="explore-control">
               <label>SOURCE</label>
@@ -1086,6 +1156,7 @@
                 <option value="modpack">Modpacks</option>
                 <option value="resourcepack">Resource packs</option>
                 <option value="shaderpack">Shader packs</option>
+                <option value="datapack">World datapacks</option>
               </select>
             </div>
             <div class="explore-control">
@@ -1181,6 +1252,7 @@
         <section class="page" id="page-settings" aria-labelledby="settings-title">
           <div class="page-heading">
             <div><p class="overline">Make it yours</p><h1 id="settings-title">Settings</h1></div>
+            <button class="secondary-button back-button" id="settings-back-button" type="button" aria-label="Go back to Play">← Back to Play</button>
           </div>
           <div class="settings-layout">
             <section class="settings-card">
@@ -1198,6 +1270,15 @@
                 <button class="secondary-button" id="download-update-button" type="button" hidden>Download update</button>
                 <button class="secondary-button" id="install-update-button" type="button" hidden>Restart and install</button>
               </div>
+            </section>
+            <section class="settings-card changelog-card" aria-labelledby="changelog-heading">
+              <h2 id="changelog-heading">What’s new · v1.0.7</h2>
+              <ul class="changelog-list">
+                <li>Saved Minecraft profiles now reopen with their selected game and loader versions.</li>
+                <li>View and interact with an animated 3D preview of your Minecraft skin on the Play screen.</li>
+                <li>Get playstyle-based suggestions for compatible modpacks, mods, and world datapacks.</li>
+                <li>Quickly return to Play with the new Settings back button.</li>
+              </ul>
             </section>
             <section class="settings-card personalization-card" aria-labelledby="personalization-heading">
               <h2 id="personalization-heading">Launcher look &amp; feel</h2>
@@ -1287,6 +1368,7 @@
       </main>
     </div>
   </div>
+  <script src="./playstyle-recommendations.js"></script>
   <script>
     const navItems = [...document.querySelectorAll('.nav-item[data-page]')];
     const pages = [...document.querySelectorAll('.page')];
@@ -1345,6 +1427,9 @@
     const exploreInstanceLabel = document.getElementById('explore-instance-label');
     const exploreSwitchInstanceButton = document.getElementById('explore-switch-instance');
     const exploreCompatibility = document.getElementById('explore-compatibility');
+    const playstylePrompt = document.getElementById('playstyle-prompt');
+    const findPlaystyleButton = document.getElementById('find-playstyle-button');
+    const playstyleStatus = document.getElementById('playstyle-status');
     const statusLine = document.getElementById('status');
     const statusText = document.getElementById('status-text');
     const updateStatus = document.getElementById('update-status');
@@ -1383,9 +1468,12 @@
     const profileCardName = document.getElementById('profile-card-name');
     const profileCardType = document.getElementById('profile-card-type');
     const playerName = document.getElementById('player-name');
-    const playerSkin = document.getElementById('player-skin');
-    const playerSkinPlaceholder = document.getElementById('player-skin-placeholder');
     const playerSkinStatus = document.getElementById('player-skin-status');
+    const playerAvatarFigure = document.getElementById('player-avatar-figure');
+    const playerAvatarPivot = document.getElementById('player-avatar-pivot');
+    const playerAvatarInteraction = document.getElementById('player-avatar-interaction');
+    const sessionProfileName = document.getElementById('session-profile-name');
+    const sessionProfileDetails = document.getElementById('session-profile-details');
     const skinVariantSelect = document.getElementById('skin-variant');
     const skinModelSettings = document.getElementById('skin-model-settings');
     const skinHelpText = document.getElementById('skin-help-text');
@@ -1465,6 +1553,18 @@
         legacyInstance: profile.legacyInstance === true || !hasInstanceId
       };
     });
+    const savedActiveProfile = launchProfiles.find((profile) => profile.id === activeProfileId);
+    if (savedActiveProfile) {
+      current = {
+        ...current,
+        ...savedActiveProfile,
+        instanceId: savedActiveProfile.instanceId || savedActiveProfile.id,
+        legacyInstance: savedActiveProfile.legacyInstance === true
+      };
+    } else {
+      activeProfileId = '';
+    }
+    if (typeof current.loaderVersion !== 'string') current.loaderVersion = '';
     const storedRam = Number(localStorage.getItem('4vill.ram'));
     if ((!storedCurrent || !Number.isInteger(current.ram)) &&
         Number.isInteger(storedRam) && storedRam >= 1 && storedRam <= 4) {
@@ -1503,6 +1603,7 @@
       document.getElementById('updates-heading').scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (!checkUpdatesButton.disabled) checkUpdatesButton.click();
     });
+    document.getElementById('settings-back-button').addEventListener('click', () => navigate('play'));
 
     function readStored(key, fallback) {
       try {
@@ -1534,9 +1635,13 @@
       const activeProfile = launchProfiles.find((profile) => profile.id === activeProfileId);
       if (activeProfile && catalogLoaded) {
         Object.assign(activeProfile, {
+          authMode: current.authMode,
+          username: current.username,
+          accountId: current.accountId,
           gameVersion: current.gameVersion,
           loaderType: current.loaderType,
           loaderVersion: current.loaderVersion,
+          ram: current.ram,
           builtInMods: current.builtInMods !== false
         });
       }
@@ -1556,9 +1661,11 @@
       profileCardName.textContent = name;
       profileCardType.textContent = current.authMode === 'microsoft' ? 'Official Microsoft account' : 'Offline account';
       playerName.textContent = name;
+      sessionProfileName.textContent = name;
       playerSkinStatus.textContent = current.authMode === 'microsoft'
         ? 'Loading your official Minecraft skin…'
-        : 'Offline local profile · choose a skin PNG for this nickname.';
+        : 'Offline profile · click or drag to turn';
+      updateSessionSummary();
       const isLocal = current.authMode === 'local';
       skinModelSettings.hidden = isLocal;
       skinHelpText.textContent = isLocal
@@ -1568,10 +1675,19 @@
       changeSkinButtons[1].textContent = isLocal ? 'Choose local skin PNG' : 'Upload Minecraft skin PNG';
     }
 
+    function updateSessionSummary() {
+      const version = gameVersionSelect.value || current.gameVersion;
+      const loader = loaderTypeSelect.value || current.loaderType;
+      const loaderVersion = loaderVersionSelect.value || current.loaderVersion;
+      const loaderLabel = loader === 'vanilla'
+        ? 'Vanilla'
+        : `${loader === 'optifine' ? 'OptiFine' : loader === 'fabric' ? 'Fabric' : 'Forge'}${loaderVersion ? ` ${loaderVersion}` : ''}`;
+      sessionProfileDetails.textContent = `Minecraft ${version} · ${loaderLabel}`;
+    }
+
     async function refreshPlayerSkin() {
       const requestId = ++skinRequestSequence;
-      playerSkin.hidden = true;
-      playerSkinPlaceholder.hidden = false;
+      renderPlayerAvatar(null);
       if (!window.launcher) return;
       const request = current.authMode === 'microsoft'
         ? { authMode: 'microsoft', accountId: selectedAccountId }
@@ -1580,62 +1696,194 @@
         const preview = await window.launcher.getSkin(request);
         if (requestId !== skinRequestSequence) return;
         playerName.textContent = preview.name || 'Local profile';
+        sessionProfileName.textContent = preview.name || 'Local profile';
         if (!preview.skinUrl) {
           playerSkinStatus.textContent = current.authMode === 'microsoft'
             ? 'No skin is set on this Minecraft profile.'
-            : 'No local skin selected yet. Choose a PNG in Profiles.';
+            : 'No local skin yet · click or drag to turn';
           return;
         }
         const skinImage = new Image();
         skinImage.onload = () => {
           if (requestId === skinRequestSequence) {
-            drawPlayerAvatar(skinImage);
-            playerSkin.hidden = false;
-            playerSkinPlaceholder.hidden = true;
+            renderPlayerAvatar(skinImage);
           }
         };
         skinImage.onerror = () => {
           if (requestId !== skinRequestSequence) return;
-          playerSkin.hidden = true;
-          playerSkinPlaceholder.hidden = false;
+          renderPlayerAvatar(null);
           playerSkinStatus.textContent = 'Skin preview is temporarily unavailable.';
         };
         skinImage.src = preview.skinUrl;
         playerSkinStatus.textContent = preview.local
-          ? 'Local skin preview · saved for this nickname'
-          : 'Minecraft player model';
+          ? 'Your local skin · click or drag to turn'
+          : 'Your Minecraft skin · click or drag to turn';
       } catch (error) {
         if (requestId !== skinRequestSequence) return;
         playerSkinStatus.textContent = error.message || 'Could not load the skin preview.';
       }
     }
 
-    function drawPlayerAvatar(skinImage) {
-      const context = playerSkin.getContext('2d');
-      context.clearRect(0, 0, playerSkin.width, playerSkin.height);
-      context.imageSmoothingEnabled = false;
-      const drawFace = (sourceX, sourceY, sourceWidth, sourceHeight, targetX, targetY, targetWidth, targetHeight) => {
-        context.drawImage(skinImage, sourceX, sourceY, sourceWidth, sourceHeight,
-          targetX, targetY, targetWidth, targetHeight);
-      };
-      drawFace(8, 8, 8, 8, 16, 0, 32, 32);
-      const modernSkin = skinImage.naturalWidth >= 64 && skinImage.naturalHeight >= 64;
-      if (modernSkin) {
-        drawFace(40, 8, 8, 8, 16, 0, 32, 32);
+    const avatarScale = 5;
+    const headFaces = {
+      front: [8, 8, 8, 8], back: [24, 8, 8, 8],
+      right: [0, 8, 8, 8], left: [16, 8, 8, 8],
+      top: [8, 0, 8, 8], bottom: [16, 0, 8, 8]
+    };
+    const bodyFaces = {
+      front: [20, 20, 8, 12], back: [32, 20, 8, 12],
+      right: [16, 20, 4, 12], left: [28, 20, 4, 12],
+      top: [20, 16, 8, 4], bottom: [28, 16, 8, 4]
+    };
+    const rightArmFaces = {
+      front: [44, 20, 4, 12], back: [52, 20, 4, 12],
+      right: [40, 20, 4, 12], left: [48, 20, 4, 12],
+      top: [44, 16, 4, 4], bottom: [48, 16, 4, 4]
+    };
+    const leftArmFaces = {
+      front: [36, 52, 4, 12], back: [44, 52, 4, 12],
+      right: [32, 52, 4, 12], left: [40, 52, 4, 12],
+      top: [36, 48, 4, 4], bottom: [40, 48, 4, 4]
+    };
+    const rightLegFaces = {
+      front: [4, 20, 4, 12], back: [12, 20, 4, 12],
+      right: [0, 20, 4, 12], left: [8, 20, 4, 12],
+      top: [4, 16, 4, 4], bottom: [8, 16, 4, 4]
+    };
+    const leftLegFaces = {
+      front: [20, 52, 4, 12], back: [28, 52, 4, 12],
+      right: [16, 52, 4, 12], left: [24, 52, 4, 12],
+      top: [20, 48, 4, 4], bottom: [24, 48, 4, 4]
+    };
+
+    function addAvatarCuboid(geometry, faceMap, imageUrl, color, options = {}) {
+      const { width, height, depth, x = 0, top = 0, hanging = false, className = '', expansion = 0 } = geometry;
+      const part = document.createElement('div');
+      part.className = `avatar-part ${className}`.trim();
+      part.style.left = `calc(50% + ${x * avatarScale}px)`;
+      part.style.top = `${top * avatarScale}px`;
+      const cuboid = document.createElement('div');
+      cuboid.className = `avatar-cuboid ${hanging ? 'hanging' : 'centered'}`;
+      const w = (width + expansion) * avatarScale;
+      const h = (height + expansion) * avatarScale;
+      const d = (depth + expansion) * avatarScale;
+      cuboid.style.setProperty('--part-width', `${w}px`);
+      cuboid.style.setProperty('--part-height', `${h}px`);
+      cuboid.style.setProperty('--depth-half', `${d / 2}px`);
+      cuboid.style.setProperty('--width-half', `${w / 2}px`);
+      cuboid.style.setProperty('--height-half', `${h / 2}px`);
+      for (const [faceName, [u, v, textureWidth, textureHeight]] of Object.entries(faceMap)) {
+        const face = document.createElement('span');
+        face.className = `avatar-face ${faceName}`;
+        const faceWidth = faceName === 'left' || faceName === 'right' ? d : w;
+        const faceHeight = faceName === 'top' || faceName === 'bottom' ? d : h;
+        face.style.width = `${faceWidth}px`;
+        face.style.height = `${faceHeight}px`;
+        face.style.backgroundColor = color;
+        if (imageUrl) {
+          face.style.backgroundImage = `url("${imageUrl.replace(/"/g, '%22')}")`;
+          face.style.backgroundSize = `${64 * avatarScale}px ${64 * avatarScale}px`;
+          face.style.backgroundPosition = `${-u * avatarScale}px ${-v * avatarScale}px`;
+        }
+        cuboid.append(face);
       }
-      drawFace(20, 20, 8, 12, 16, 32, 32, 48);
-      drawFace(44, 20, 4, 12, 0, 32, 16, 48);
-      drawFace(modernSkin ? 36 : 44, modernSkin ? 52 : 20, 4, 12, 48, 32, 16, 48);
-      drawFace(4, 20, 4, 12, 16, 80, 16, 48);
-      drawFace(modernSkin ? 20 : 4, modernSkin ? 52 : 20, 4, 12, 32, 80, 16, 48);
+      part.append(cuboid);
+      playerAvatarFigure.append(part);
+      return part;
+    }
+
+    function renderPlayerAvatar(skinImage) {
+      playerAvatarFigure.replaceChildren();
+      const imageUrl = skinImage ? skinImage.src : '';
+      const modernSkin = skinImage && skinImage.naturalWidth >= 64 && skinImage.naturalHeight >= 64;
+      const colors = {
+        head: '#c99a6d', body: '#3975d5', arms: '#c99a6d', legs: '#273c5b'
+      };
+      addAvatarCuboid(
+        { width: 8, height: 8, depth: 8, top: 4 },
+        headFaces, imageUrl, colors.head, { className: 'head' }
+      );
+      addAvatarCuboid(
+        { width: 8, height: 12, depth: 4, top: 14 },
+        bodyFaces, imageUrl, colors.body, { className: 'body' }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: -6.2, top: 8, hanging: true },
+        modernSkin ? leftArmFaces : rightArmFaces, imageUrl, colors.arms,
+        { className: 'arm arm-left' }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: 6.2, top: 8, hanging: true },
+        rightArmFaces, imageUrl, colors.arms, { className: 'arm arm-right' }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: -2, top: 20, hanging: true },
+        modernSkin ? leftLegFaces : rightLegFaces, imageUrl, colors.legs,
+        { className: 'leg leg-left' }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: 2, top: 20, hanging: true },
+        rightLegFaces, imageUrl, colors.legs, { className: 'leg leg-right' }
+      );
       if (modernSkin) {
-        drawFace(20, 36, 8, 12, 16, 32, 32, 48);
-        drawFace(44, 36, 4, 12, 0, 32, 16, 48);
-        drawFace(52, 52, 4, 12, 48, 32, 16, 48);
-        drawFace(4, 36, 4, 12, 16, 80, 16, 48);
-        drawFace(4, 52, 4, 12, 32, 80, 16, 48);
+        const headHatFaces = {
+          front: [40, 8, 8, 8], back: [56, 8, 8, 8],
+          right: [32, 8, 8, 8], left: [48, 8, 8, 8],
+          top: [40, 0, 8, 8], bottom: [48, 0, 8, 8]
+        };
+        const jacketFaces = {
+          front: [20, 36, 8, 12], back: [32, 36, 8, 12],
+          right: [16, 36, 4, 12], left: [28, 36, 4, 12],
+          top: [20, 32, 8, 4], bottom: [28, 32, 8, 4]
+        };
+        addAvatarCuboid(
+          { width: 8, height: 8, depth: 8, top: 4 }, headHatFaces, imageUrl, colors.head,
+          { className: 'head-layer', expansion: 0.35 }
+        );
+        addAvatarCuboid(
+          { width: 8, height: 12, depth: 4, top: 14 }, jacketFaces, imageUrl, colors.body,
+          { className: 'body-layer', expansion: 0.3 }
+        );
       }
     }
+
+    let avatarYaw = 0;
+    let avatarPitch = 0;
+    function updateAvatarRotation() {
+      playerAvatarPivot.style.transform = `rotateX(${avatarPitch}deg) rotateY(${avatarYaw}deg)`;
+    }
+    document.getElementById('player-avatar-interaction').addEventListener('pointermove', (event) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      avatarYaw = ((event.clientX - bounds.left) / bounds.width - 0.5) * 34;
+      avatarPitch = (0.5 - (event.clientY - bounds.top) / bounds.height) * 12;
+      updateAvatarRotation();
+    });
+    document.getElementById('player-avatar-interaction').addEventListener('pointerleave', () => {
+      avatarYaw = 0;
+      avatarPitch = 0;
+      updateAvatarRotation();
+    });
+    document.getElementById('player-avatar-interaction').addEventListener('click', () => {
+      playerAvatarPivot.classList.remove('is-spinning');
+      void playerAvatarPivot.offsetWidth;
+      playerAvatarPivot.classList.add('is-spinning');
+    });
+    playerAvatarPivot.addEventListener('animationend', (event) => {
+      if (event.animationName === 'avatar-spin') playerAvatarPivot.classList.remove('is-spinning');
+    });
+    document.getElementById('player-avatar-interaction').addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        avatarYaw += event.key === 'ArrowLeft' ? -15 : 15;
+        updateAvatarRotation();
+      }
+      if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        avatarPitch += event.key === 'ArrowUp' ? -8 : 8;
+        avatarPitch = Math.max(-28, Math.min(28, avatarPitch));
+        updateAvatarRotation();
+      }
+    });
 
     function selectAuthMode(mode, persist = true) {
       current.authMode = mode;
@@ -1899,7 +2147,9 @@
             value: version,
             label: version === catalog.latest ? `${version} · latest` : version
           })),
-          catalog.gameVersion || gameVersion || current.gameVersion
+          gameVersion && catalog.versions.includes(gameVersion)
+            ? gameVersion
+            : catalog.gameVersion || current.gameVersion
         );
         catalogLoaded = true;
         current.gameVersion = gameVersionSelect.value;
@@ -2103,27 +2353,7 @@
           ? await window.launcher.chooseLocalSkin(username)
           : await window.launcher.uploadSkin(selectedAccountId, skinVariantSelect.value);
         if (!preview) return;
-        const requestId = ++skinRequestSequence;
-        playerName.textContent = preview.name;
-        playerSkinStatus.textContent = preview.local
-          ? 'Local skin preview · saved for this nickname'
-          : 'Skin updated on your Minecraft Java profile.';
-        playerSkin.hidden = true;
-        const skinImage = new Image();
-        skinImage.onload = () => {
-          if (requestId === skinRequestSequence) {
-            drawPlayerAvatar(skinImage);
-            playerSkin.hidden = false;
-            playerSkinPlaceholder.hidden = true;
-          }
-        };
-        skinImage.onerror = () => {
-          if (requestId !== skinRequestSequence) return;
-          playerSkin.hidden = true;
-          playerSkinPlaceholder.hidden = false;
-          playerSkinStatus.textContent = 'Skin updated, but its preview is temporarily unavailable.';
-        };
-        skinImage.src = preview.skinUrl;
+        await refreshPlayerSkin();
         setStatus(preview.local ? 'Local skin saved for this nickname.' : 'Minecraft skin updated successfully.', 'success');
       } catch (error) {
         setStatus(error.message || 'Could not upload the Minecraft skin.', 'error');
@@ -2375,7 +2605,13 @@
         install.type = 'button';
         install.className = 'secondary-button';
         install.textContent = project.type === 'modpack' ? 'Install pack' : 'Install';
-        install.addEventListener('click', () => installExploreResult(project, install));
+        install.disabled = project.type === 'datapack';
+        if (project.type === 'datapack') {
+          install.textContent = 'World install unavailable';
+          install.title = 'Choose a specific Minecraft world to install a datapack safely.';
+        } else {
+          install.addEventListener('click', () => installExploreResult(project, install));
+        }
         const view = document.createElement('button');
         view.type = 'button';
         view.className = 'secondary-button';
@@ -2665,6 +2901,22 @@
       explorePage = 0;
       exploreResults.dataset.loaded = '';
       runExploreSearch();
+    });
+
+    findPlaystyleButton.addEventListener('click', () => {
+      try {
+        const recommendation = window.PlaystyleRecommendations.recommendPlaystyle(playstylePrompt.value);
+        exploreQueryInput.value = recommendation.query;
+        exploreTypeSelect.value = recommendation.type;
+        playstyleStatus.dataset.kind = 'info';
+        playstyleStatus.textContent = `Searching ${recommendation.type} projects for “${recommendation.query}”. These terms are sent to Modrinth for search.`;
+        navigate('explore');
+        exploreTypeSelect.dispatchEvent(new Event('change'));
+      } catch (error) {
+        playstyleStatus.dataset.kind = 'error';
+        playstyleStatus.textContent = error.message || 'Could not create suggestions.';
+        playstylePrompt.focus();
+      }
     });
 
     modpackGameVersionSelect.addEventListener('change', () => {

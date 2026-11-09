@@ -21,12 +21,13 @@ const FABRIC_META_URL = 'https://meta.fabricmc.net/v2';
 const FORGE_PROMOTIONS_URL = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
 const FORGE_MAVEN_URL = 'https://maven.minecraftforge.net/net/minecraftforge/forge';
 const MODRINTH_API_URL = 'https://api.modrinth.com/v2';
-const EXPLORE_TYPES = new Set(['mod', 'modpack', 'resourcepack', 'shaderpack']);
+const EXPLORE_TYPES = new Set(['mod', 'modpack', 'resourcepack', 'shaderpack', 'datapack']);
 const MODRINTH_TYPES = {
   mod: 'mod',
   modpack: 'modpack',
   resourcepack: 'resourcepack',
-  shaderpack: 'shader'
+  shaderpack: 'shader',
+  datapack: 'datapack'
 };
 const PERFORMANCE_MODS = {
   fabric: [
@@ -1072,6 +1073,9 @@ async function installExploreProject(event, request) {
       typeof request.projectId !== 'string' ||
       !/^[A-Za-z0-9_-]{1,80}$/.test(request.projectId)) {
     throw new Error('Choose a valid project to install.');
+  }
+  if (request.type === 'datapack') {
+    throw new Error('World data packs must be installed into a specific Minecraft world. Open the project page to review its instructions.');
   }
   if (request.type === 'modpack') {
     if (typeof request.packGameVersion !== 'string' ||

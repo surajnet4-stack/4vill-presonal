@@ -10,6 +10,7 @@ module.exports = {
     'index.html',
     'path-safety.js',
     'azure-resource-pack.js',
+    'playstyle-recommendations.js',
     'assets/**/*',
     'bin/**/*',
     'client-mod/build/libs/azure-client-*-1.0.1.jar',
