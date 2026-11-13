@@ -4,40 +4,163 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.api.ModContainer;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 public final class AzureMenuScreen extends Screen {
-    private enum Tab {
-        HUD("HUD", "On-screen widgets"),
-        CROSSHAIR("CROSSHAIR", "Shape, scale and color"),
-        WORLD("WORLD", "Visual enhancements"),
-        TOOLS("TOOLS", "PvP and survival utilities"),
-        THEMES("THEMES", "Colors and transparency"),
-        PRESETS("PRESETS", "Profiles for this instance"),
-        MODS("MODS", "Installed mods in this instance"),
-        COSMETICS("COSMETICS", "Free starter cosmetics");
+    public enum Category {
+        ALL("ALL MODS", "Browse all 25+ features"),
+        HUD("HUD & OVERLAYS", "Custom on-screen widgets"),
+        PVP("PVP & COMBAT", "Combat utilities and hit indicators"),
+        VISUALS("RENDER & VISUALS", "Visual enhancements and lighting"),
+        MECHANICS("MECHANICS", "Movement and gameplay utilities"),
+        THEMES("THEMES & COLORS", "Color schemes and transparency"),
+        PRESETS("PRESETS", "Pre-configured profiles"),
+        COSMETICS("COSMETICS", "Free cosmetics and accessories");
 
-        private final String title;
-        private final String subtitle;
+        public final String title;
+        public final String subtitle;
 
-        Tab(String title, String subtitle) {
+        Category(String title, String subtitle) {
             this.title = title;
             this.subtitle = subtitle;
         }
     }
 
-    private static final int PANEL_WIDTH = 620;
-    private static final int PANEL_HEIGHT = 530;
-    private static final int[] PALETTE = {
-        0xfff5f7ff, 0xff49d8ce, 0xff8ab4ff, 0xffffca78,
-        0xffff7f9f, 0xffc6a0ff, 0xff80e0a0
-    };
-    private static final Tab[] TABS = Tab.values();
-    private static final int[] HUD_FEATURES = {0, 1, 2, 3, 4, 5};
-    private Tab selectedTab = Tab.HUD;
+    public static final class ModEntry {
+        public final String id;
+        public final String name;
+        public final String description;
+        public final Category category;
+        public final String icon;
+        public float animProgress; // 0.0 to 1.0 for smooth toggle animation
+
+        public ModEntry(String id, String name, String description, Category category, String icon) {
+            this.id = id;
+            this.name = name;
+            this.description = description;
+            this.category = category;
+            this.icon = icon;
+            this.animProgress = isEnabled() ? 1.0f : 0.0f;
+        }
+
+        public boolean isEnabled() {
+            AzureConfig cfg = AzureClient.config();
+            return switch (id) {
+                case "watermark" -> cfg.showWatermark;
+                case "fps" -> cfg.showFps;
+                case "keycaps" -> cfg.showKeycaps;
+                case "cps" -> cfg.showCps;
+                case "ping" -> cfg.showPing;
+                case "armor" -> cfg.showArmor;
+                case "potions" -> cfg.showPotions;
+                case "coords" -> cfg.showCoordinates;
+                case "direction" -> cfg.showDirection;
+                case "speed" -> cfg.showSpeedometer;
+                case "combo" -> cfg.showCombo;
+                case "reach" -> cfg.showReach;
+                case "clock" -> cfg.showClock;
+                case "memory" -> cfg.showMemory;
+                case "sprint" -> AzureClient.isSprintToggled();
+                case "sneak" -> AzureClient.isSneakToggled();
+                case "autosprint" -> cfg.autoSprint;
+                case "crosshair" -> cfg.customCrosshair;
+                case "fullbright" -> cfg.fullBright;
+                case "outline" -> cfg.blockOutline;
+                case "blockoverlay" -> cfg.showBlockOverlay;
+                case "lowfire" -> cfg.lowFire;
+                case "nohurtcam" -> cfg.noHurtCam;
+                case "chroma" -> cfg.chromaHud;
+                case "freelook" -> AzureClient.isFreeLookActive();
+                default -> false;
+            };
+        }
+
+        public void toggle() {
+            AzureConfig cfg = AzureClient.config();
+            switch (id) {
+                case "watermark" -> cfg.showWatermark = !cfg.showWatermark;
+                case "fps" -> cfg.showFps = !cfg.showFps;
+                case "keycaps" -> cfg.showKeycaps = !cfg.showKeycaps;
+                case "cps" -> cfg.showCps = !cfg.showCps;
+                case "ping" -> cfg.showPing = !cfg.showPing;
+                case "armor" -> cfg.showArmor = !cfg.showArmor;
+                case "potions" -> cfg.showPotions = !cfg.showPotions;
+                case "coords" -> cfg.showCoordinates = !cfg.showCoordinates;
+                case "direction" -> cfg.showDirection = !cfg.showDirection;
+                case "speed" -> cfg.showSpeedometer = !cfg.showSpeedometer;
+                case "combo" -> cfg.showCombo = !cfg.showCombo;
+                case "reach" -> cfg.showReach = !cfg.showReach;
+                case "clock" -> cfg.showClock = !cfg.showClock;
+                case "memory" -> cfg.showMemory = !cfg.showMemory;
+                case "sprint" -> AzureClient.setSprintToggled(!AzureClient.isSprintToggled());
+                case "sneak" -> AzureClient.setSneakToggled(!AzureClient.isSneakToggled());
+                case "autosprint" -> AzureClient.setAutoSprint(!cfg.autoSprint);
+                case "crosshair" -> cfg.customCrosshair = !cfg.customCrosshair;
+                case "fullbright" -> cfg.fullBright = !cfg.fullBright;
+                case "outline" -> cfg.blockOutline = !cfg.blockOutline;
+                case "blockoverlay" -> cfg.showBlockOverlay = !cfg.showBlockOverlay;
+                case "lowfire" -> cfg.lowFire = !cfg.lowFire;
+                case "nohurtcam" -> cfg.noHurtCam = !cfg.noHurtCam;
+                case "chroma" -> cfg.chromaHud = !cfg.chromaHud;
+                case "freelook" -> AzureClient.toggleFreeLook(net.minecraft.client.MinecraftClient.getInstance());
+            }
+            cfg.hudPreset = "custom";
+            cfg.save();
+        }
+    }
+
+    private static final int PANEL_WIDTH = 680;
+    private static final int PANEL_HEIGHT = 460;
+    private static final Category[] CATEGORIES = Category.values();
+    private static final List<ModEntry> MODS = new ArrayList<>();
+
+    static {
+        // HUD
+        MODS.add(new ModEntry("watermark", "Watermark", "Branded corner HUD badge", Category.HUD, "✦"));
+        MODS.add(new ModEntry("fps", "FPS Counter", "Live frame rate display", Category.HUD, "F"));
+        MODS.add(new ModEntry("keycaps", "Keystrokes", "WASD + mouse + space clicks", Category.HUD, "K"));
+        MODS.add(new ModEntry("cps", "CPS Counter", "Dual Left & Right click tracker", Category.HUD, "C"));
+        MODS.add(new ModEntry("ping", "Ping Display", "Server latency with color alerts", Category.HUD, "P"));
+        MODS.add(new ModEntry("armor", "Armor Status", "Equipped armor durability & icons", Category.HUD, "A"));
+        MODS.add(new ModEntry("potions", "Potion Effects", "Active effect timers & icons", Category.HUD, "P"));
+        MODS.add(new ModEntry("coords", "Coordinates", "XYZ coords + biome + nether calc", Category.HUD, "X"));
+        MODS.add(new ModEntry("direction", "Direction", "Facing compass & yaw angle", Category.HUD, "N"));
+        MODS.add(new ModEntry("speed", "Speedometer", "Real-time horizontal motion speed", Category.HUD, "S"));
+        MODS.add(new ModEntry("clock", "Clock", "Real-world time or in-game clock", Category.HUD, "T"));
+        MODS.add(new ModEntry("memory", "Memory / RAM", "JVM heap usage display", Category.HUD, "M"));
+        MODS.add(new ModEntry("blockoverlay", "Block Info", "Target block name & coordinates", Category.HUD, "B"));
+
+        // PVP
+        MODS.add(new ModEntry("combo", "Combo Counter", "PvP consecutive hit tracker", Category.PVP, "⚔"));
+        MODS.add(new ModEntry("reach", "Reach Display", "Calculated attack distance in blocks", Category.PVP, "R"));
+        MODS.add(new ModEntry("lowfire", "Low Fire", "Lowers screen fire for clear vision", Category.PVP, "F"));
+        MODS.add(new ModEntry("nohurtcam", "No Hurt Cam", "Eliminates camera shake on damage", Category.PVP, "H"));
+
+        // VISUALS
+        MODS.add(new ModEntry("crosshair", "Custom Crosshair", "Cross, Dot, Circle & hit colors", Category.VISUALS, "+"));
+        MODS.add(new ModEntry("fullbright", "Fullbright", "Boosts brightness for caves & night", Category.VISUALS, "☀"));
+        MODS.add(new ModEntry("outline", "Block Outline", "Custom colored highlight on blocks", Category.VISUALS, "O"));
+        MODS.add(new ModEntry("chroma", "Chroma HUD", "Smooth animated RGB rainbow wave", Category.VISUALS, "C"));
+        MODS.add(new ModEntry("freelook", "Free Look (V)", "360-degree third-person perspective", Category.VISUALS, "V"));
+
+        // MECHANICS
+        MODS.add(new ModEntry("sprint", "Toggle Sprint (K)", "Sticky toggle sprint with badge", Category.MECHANICS, "S"));
+        MODS.add(new ModEntry("sneak", "Toggle Sneak (J)", "Sticky toggle sneak with badge", Category.MECHANICS, "N"));
+        MODS.add(new ModEntry("autosprint", "Auto Sprint", "Forward movement automatically sprints", Category.MECHANICS, "»"));
+    }
+
+    private Category selectedCategory = Category.ALL;
     private long openedAt;
-    private int modsScroll;
+    private float animatedTabY = -1;
+    private String searchQuery = "";
+    private boolean searchFocused = false;
+    private int scrollOffset = 0;
+    private boolean draggingMenuOpacity;
+    private boolean draggingHudOpacity;
     private final Screen parent;
 
     public AzureMenuScreen() {
@@ -52,721 +175,563 @@ public final class AzureMenuScreen extends Screen {
     @Override
     protected void init() {
         openedAt = System.currentTimeMillis();
+        animatedTabY = -1;
+        scrollOffset = 0;
     }
 
     private int panelLeft() {
-        return Math.max(8, (width - PANEL_WIDTH) / 2);
+        return Math.max(6, (width - PANEL_WIDTH) / 2);
     }
 
     private int panelTop() {
-        return Math.max(8, (height - PANEL_HEIGHT) / 2);
+        return Math.max(6, (height - PANEL_HEIGHT) / 2);
     }
 
-    private int contentLeft() {
-        return panelLeft() + 184;
-    }
-
-    private int contentTop() {
-        return panelTop() + 82;
+    private int panelEntranceOffset() {
+        float progress = Math.min(1.0f, (System.currentTimeMillis() - openedAt) / 200.0f);
+        return Math.round((1.0f - progress) * 10.0f);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        context.fill(0, 0, width, height, 0x70060a12);
+        // Background dim
+        context.fill(0, 0, width, height, 0x6e060911);
+
         AzureConfig config = AzureClient.config();
-        int accent = config.accentColor();
-        double progress = Math.min(1.0, (System.currentTimeMillis() - openedAt) / 260.0);
-        int lift = (int) ((1.0 - progress) * 12);
+        int accent = config.chromaHud ? AzureClient.getChromaColor(0) : config.accentColor();
+
+        // Smooth panel entrance animation
         int left = panelLeft();
-        int top = panelTop() + lift;
-        context.fill(left + 4, top + 7, left + PANEL_WIDTH + 4, top + PANEL_HEIGHT + 7, 0x66000000);
-        context.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, withOpacity(0xff10151e, config.menuOpacity));
+        int top = panelTop() + panelEntranceOffset();
+
+        // Shadow & Backdrop
+        context.fill(left + 6, top + 8, left + PANEL_WIDTH + 6, top + PANEL_HEIGHT + 8, 0x55000000);
+        context.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, AzureHud.withOpacity(0xff0d131d, config.menuOpacity));
+
+        // Accent top border
         context.fill(left, top, left + PANEL_WIDTH, top + 2, accent);
-        context.fill(left, top + 2, left + PANEL_WIDTH, top + 3, withOpacity(accent, 38));
-        context.fill(left + 1, top + 1, left + 168, top + PANEL_HEIGHT - 1,
-            withOpacity(0xff141b27, config.menuOpacity));
-        context.fill(left + 168, top + 1, left + 169, top + PANEL_HEIGHT - 1, 0xff2a3544);
-        drawBorder(context, left, top, PANEL_WIDTH, PANEL_HEIGHT, 0x665b7187);
+        AzureHud.drawBorder(context, left, top, PANEL_WIDTH, PANEL_HEIGHT, 0x4430425a);
 
-        context.fill(left + 20, top + 20, left + 45, top + 45, accent);
-        context.fill(left + 20, top + 20, left + 45, top + 21, 0xfff4f7fb);
-        context.drawCenteredTextWithShadow(textRenderer, "A", left + 32, top + 28, 0xff10151e);
-        context.drawTextWithShadow(textRenderer, "AZURE PERSONAL", left + 54, top + 22, 0xfff1f5fb);
-        context.drawTextWithShadow(textRenderer, "CLIENT MENU", left + 54, top + 35, 0xff91a0b4);
-        context.drawTextWithShadow(textRenderer, "ACTIVE INSTANCE", left + PANEL_WIDTH - 132, top + 20, 0xff8292a7);
-        context.drawTextWithShadow(textRenderer, AzureConfig.instanceLabel(), left + PANEL_WIDTH - 132,
-            top + 34, accent);
+        // Sidebar backdrop
+        int sidebarWidth = 156;
+        context.fill(left + 1, top + 3, left + sidebarWidth, top + PANEL_HEIGHT - 1,
+            AzureHud.withOpacity(0xff111824, config.menuOpacity));
+        context.fill(left + sidebarWidth, top + 3, left + sidebarWidth + 1, top + PANEL_HEIGHT - 1, 0x442e3f56);
 
-        int navY = top + 78;
-        for (int index = 0; index < TABS.length; index++) {
-            int y = navY + index * 34;
-            boolean active = selectedTab == TABS[index];
-            boolean hovered = mouseX >= left + 13 && mouseX <= left + 155 &&
-                mouseY >= y && mouseY <= y + 30;
-            if (active || hovered) {
-                context.fill(left + 13, y, left + 155, y + 30, active ? 0xff253444 : 0xff1b2734);
-                drawBorder(context, left + 13, y, 142, 30,
-                    active ? withOpacity(accent, 120) : 0x554b6075);
-            }
-            if (active) context.fill(left + 13, y, left + 16, y + 30, accent);
-            context.drawTextWithShadow(textRenderer, active ? ">" : "-", left + 25, y + 10,
-                active ? accent : 0xff8292a7);
-            context.drawTextWithShadow(textRenderer, TABS[index].title, left + 43, y + 10,
-                active ? 0xfff3f7fc : 0xffb8c2d0);
+        // Brand Logo in Sidebar Header
+        context.fill(left + 14, top + 14, left + 36, top + 36, accent);
+        context.drawCenteredTextWithShadow(textRenderer, "A", left + 25, top + 20, 0xff0b1017);
+        context.drawTextWithShadow(textRenderer, "AZURE CLIENT", left + 43, top + 15, 0xfff0f4fa);
+        String modVersion = FabricLoader.getInstance().getModContainer("azureclient")
+            .map(container -> container.getMetadata().getVersion().getFriendlyString())
+            .orElse("unknown");
+        context.drawTextWithShadow(textRenderer, "v" + modVersion + " · FABRIC", left + 43, top + 26, accent);
+
+        // Header Action Bar (Search Bar, HUD Editor button, Preset Pills)
+        int headerX = left + sidebarWidth + 16;
+        int headerY = top + 12;
+        renderHeaderBar(context, headerX, headerY, PANEL_WIDTH - sidebarWidth - 28, mouseX, mouseY, accent);
+
+        // Animated Tab Navigation in Sidebar
+        renderSidebarTabs(context, left + 10, top + 52, sidebarWidth - 20, mouseX, mouseY, accent, delta);
+
+        // Main Content Area
+        int contentX = left + sidebarWidth + 16;
+        int contentY = top + 46;
+        int contentWidth = PANEL_WIDTH - sidebarWidth - 28;
+        int contentHeight = PANEL_HEIGHT - 56;
+
+        switch (selectedCategory) {
+            case THEMES -> renderThemesTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
+            case PRESETS -> renderPresetsTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
+            case COSMETICS -> renderCosmeticsTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
+            default -> renderModCardsGrid(context, contentX, contentY, contentWidth, contentHeight, mouseX, mouseY, accent, delta);
         }
-        context.drawTextWithShadow(textRenderer, "RIGHT SHIFT  ·  CLOSE", left + 19,
-            top + PANEL_HEIGHT - 29, 0xff8e9caf);
 
-        int translatedMouseY = mouseY - lift;
-        int x = contentLeft();
-        int y = contentTop() + lift;
-        context.fill(x, top + 54, x + PANEL_WIDTH - 210, top + 55, 0x443a4a5d);
-        context.fill(x, top + 54, x + 24, top + 56, accent);
-        context.drawTextWithShadow(textRenderer, selectedTab.subtitle, x, top + 58, 0xffaab8cb);
-        switch (selectedTab) {
-            case HUD -> renderHudTab(context, x, y, mouseX, translatedMouseY);
-            case CROSSHAIR -> renderCrosshairTab(context, x, y, mouseX, translatedMouseY);
-            case WORLD -> renderWorldTab(context, x, y, mouseX, translatedMouseY);
-            case TOOLS -> renderToolsTab(context, x, y, mouseX, translatedMouseY);
-            case THEMES -> renderThemesTab(context, x, y, mouseX, translatedMouseY);
-            case PRESETS -> renderPresetsTab(context, x, y, mouseX, translatedMouseY);
-            case MODS -> renderModsTab(context, x, y);
-            case COSMETICS -> renderCosmeticsTab(context, x, y, mouseX, translatedMouseY);
-        }
-        context.drawTextWithShadow(textRenderer, "Settings save automatically", x,
-            top + PANEL_HEIGHT - 29, 0xff7f8da0);
+        // Footer helper
+        context.drawTextWithShadow(textRenderer, "ESC / R-SHIFT · CLOSE", left + 14, top + PANEL_HEIGHT - 18, 0xff67788e);
+        context.drawTextWithShadow(textRenderer, "R-CTRL · HUD EDITOR", left + sidebarWidth - 65, top + PANEL_HEIGHT - 18, 0xff67788e);
     }
 
-    private void renderHudTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        String[] labels = {"FPS counter", "Movement keys", "Block information", "Armor status", "Coordinates", "Direction"};
-        String[] icons = {"F", "K", "B", "A", "X", "N"};
-        String[] descriptions = {"Live frame rate", "WASD and jump", "Target block + position", "Equipment durability", "XYZ position", "Facing direction"};
+    private void renderHeaderBar(DrawContext context, int x, int y, int barWidth, int mouseX, int mouseY, int accent) {
+        // 1. Search Box
+        int searchWidth = 190;
+        int searchHeight = 22;
+        context.fill(x, y, x + searchWidth, y + searchHeight, searchFocused ? 0xff16202e : 0xff101722);
+        AzureHud.drawBorder(context, x, y, searchWidth, searchHeight, searchFocused ? accent : 0x44394d68);
+        String searchDisplay = searchQuery.isEmpty()
+            ? (searchFocused ? "" : "Search mods...")
+            : searchQuery;
+        int textColor = searchQuery.isEmpty() && !searchFocused ? 0xff6b7d94 : 0xfff0f4fa;
+        context.drawTextWithShadow(textRenderer, searchDisplay, x + 7, y + 7, textColor);
+
+        // 2. [✏ EDIT HUD] Button
+        int editorBtnX = x + searchWidth + 10;
+        int editorBtnWidth = 86;
+        boolean editorHover = inside(mouseX, mouseY, editorBtnX, y, editorBtnWidth, 22);
+        context.fill(editorBtnX, y, editorBtnX + editorBtnWidth, y + 22, editorHover ? 0xff25384c : 0xff162332);
+        AzureHud.drawBorder(context, editorBtnX, y, editorBtnWidth, 22, editorHover ? 0xffffffff : accent);
+        context.drawCenteredTextWithShadow(textRenderer, "✏ EDIT HUD", editorBtnX + editorBtnWidth / 2, y + 7,
+            editorHover ? 0xffffffff : accent);
+
+        // 3. Quick Preset Pills
+        String[] presets = {"PVP", "BEDWARS", "SMP", "MIN"};
+        int pillStartX = editorBtnX + editorBtnWidth + 10;
+        int pillWidth = 44;
+        for (int i = 0; i < presets.length; i++) {
+            int px = pillStartX + i * (pillWidth + 4);
+            boolean isCur = presets[i].equalsIgnoreCase(AzureClient.config().hudPreset);
+            boolean hov = inside(mouseX, mouseY, px, y, pillWidth, 22);
+            context.fill(px, y, px + pillWidth, y + 22, isCur ? 0xff203746 : (hov ? 0xff1d2838 : 0xff121824));
+            AzureHud.drawBorder(context, px, y, pillWidth, 22, isCur ? accent : 0x33455973);
+            context.drawCenteredTextWithShadow(textRenderer, presets[i], px + pillWidth / 2, y + 7,
+                isCur ? accent : (hov ? 0xfff0f4fa : 0xff8ca0b8));
+        }
+    }
+
+    private void renderSidebarTabs(DrawContext context, int x, int startY, int tabWidth,
+                                   int mouseX, int mouseY, int accent, float delta) {
+        int tabHeight = 28;
+        int gap = 3;
+        int targetY = startY + selectedCategory.ordinal() * (tabHeight + gap);
+
+        if (animatedTabY < 0) {
+            animatedTabY = targetY;
+        } else {
+            animatedTabY += (targetY - animatedTabY) * 0.35f;
+        }
+
+        // Gliding indicator capsule behind active tab
+        context.fill(x, (int) animatedTabY, x + tabWidth, (int) animatedTabY + tabHeight, 0xff1b2636);
+        context.fill(x, (int) animatedTabY, x + 3, (int) animatedTabY + tabHeight, accent);
+        AzureHud.drawBorder(context, x, (int) animatedTabY, tabWidth, tabHeight, 0x444b6485);
+
+        for (int i = 0; i < CATEGORIES.length; i++) {
+            int y = startY + i * (tabHeight + gap);
+            boolean active = selectedCategory == CATEGORIES[i];
+            boolean hovered = inside(mouseX, mouseY, x, y, tabWidth, tabHeight);
+
+            if (hovered && !active) {
+                context.fill(x, y, x + tabWidth, y + tabHeight, 0x3328394e);
+            }
+
+            int labelColor = active ? 0xfff0f4fa : (hovered ? 0xffdbe5f2 : 0xff8798ad);
+            context.drawTextWithShadow(textRenderer, CATEGORIES[i].title, x + 10, y + 10, labelColor);
+        }
+    }
+
+    // --- Mod Cards Grid with Smooth Sliding Animated Switches ---
+    private void renderModCardsGrid(DrawContext context, int x, int y, int width, int height,
+                                    int mouseX, int mouseY, int accent, float delta) {
+        List<ModEntry> list = getFilteredMods();
         int columns = 2;
-        int gap = 9;
-        int cardWidth = (PANEL_WIDTH - 184 - 30 - gap) / columns;
-        int cardHeight = 68;
-        for (int index : HUD_FEATURES) {
-            int column = index % columns;
-            int row = index / columns;
-            int cardX = x + column * (cardWidth + gap);
-            int cardY = y + row * (cardHeight + 9);
-            boolean enabled = hudFeatureEnabled(index);
-            drawFeatureCard(context, cardX, cardY, cardWidth, cardHeight, mouseX, mouseY,
-                labels[index], icons[index], descriptions[index], enabled);
+        int cardGap = 8;
+        int cardWidth = (width - cardGap) / columns;
+        int cardHeight = 52;
+        int rowsPerPage = 6;
+        int maxScroll = Math.max(0, (list.size() + 1) / columns - rowsPerPage);
+        scrollOffset = Math.max(0, Math.min(scrollOffset, maxScroll));
+
+        int startRow = scrollOffset;
+        int visibleCount = rowsPerPage * columns;
+
+        for (int i = 0; i < visibleCount; i++) {
+            int index = startRow * columns + i;
+            if (index >= list.size()) break;
+
+            ModEntry mod = list.get(index);
+            int col = i % columns;
+            int row = i / columns;
+            int cardX = x + col * (cardWidth + cardGap);
+            int cardY = y + row * (cardHeight + cardGap);
+
+            // Animate toggle switch progress
+            boolean enabled = mod.isEnabled();
+            float targetAnim = enabled ? 1.0f : 0.0f;
+            mod.animProgress += (targetAnim - mod.animProgress) * 0.35f;
+
+            boolean hovered = inside(mouseX, mouseY, cardX, cardY, cardWidth, cardHeight);
+
+            // Card background & borders
+            int cardBg = hovered ? 0xff162232 : 0xff101723;
+            context.fill(cardX, cardY, cardX + cardWidth, cardY + cardHeight, cardBg);
+            context.fill(cardX, cardY, cardX + 3, cardY + cardHeight, enabled ? accent : 0xff253245);
+            AzureHud.drawBorder(context, cardX, cardY, cardWidth, cardHeight,
+                hovered ? 0x88496482 : (enabled ? 0x444b6c8f : 0x22354a63));
+
+            // Icon & Labels
+            context.drawTextWithShadow(textRenderer, mod.icon, cardX + 11, cardY + 12, enabled ? accent : 0xff6a7f99);
+            context.drawTextWithShadow(textRenderer, mod.name, cardX + 27, cardY + 11, 0xfff0f4fa);
+            context.drawTextWithShadow(textRenderer, mod.description, cardX + 27, cardY + 26, 0xff7c8fa6);
+
+            // --- Animated Toggle Pill Switch ---
+            int pillWidth = 28;
+            int pillHeight = 14;
+            int pillX = cardX + cardWidth - pillWidth - 12;
+            int pillY = cardY + (cardHeight - pillHeight) / 2;
+
+            // Interpolate pill track color
+            int trackColor = interpolateColor(0xff233042, accent, mod.animProgress);
+            context.fill(pillX, pillY, pillX + pillWidth, pillY + pillHeight, trackColor);
+            AzureHud.drawBorder(context, pillX, pillY, pillWidth, pillHeight, 0x44587396);
+
+            // Sliding knob
+            int knobMinX = pillX + 2;
+            int knobMaxX = pillX + pillWidth - 12;
+            int knobX = (int) (knobMinX + (knobMaxX - knobMinX) * mod.animProgress);
+            context.fill(knobX, pillY + 2, knobX + 10, pillY + pillHeight - 2, 0xffffffff);
         }
-        int editY = y + 3 * (cardHeight + 9);
-        drawActionCard(context, x, editY, PANEL_WIDTH - 184 - 30, 36,
-            mouseX, mouseY, "EDIT HUD  ·  DRAG, RESIZE & COLOR", 0xff49d8ce);
+
+        if (list.isEmpty()) {
+            context.drawTextWithShadow(textRenderer, "No features match this search.", x + 8, y + 16, 0xff9aabc0);
+        }
+
+        if (maxScroll > 0) {
+            context.drawTextWithShadow(textRenderer, "Scroll to browse more (" + list.size() + " mods)",
+                x + 4, y + rowsPerPage * (cardHeight + cardGap) + 4, 0xff6c7f96);
+        }
     }
 
-    private void renderCrosshairTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
+    private List<ModEntry> getFilteredMods() {
+        if (!searchQuery.isEmpty()) {
+            String q = searchQuery.toLowerCase(Locale.ROOT);
+            return MODS.stream()
+                .filter(m -> m.name.toLowerCase(Locale.ROOT).contains(q) ||
+                    m.description.toLowerCase(Locale.ROOT).contains(q))
+                .toList();
+        }
+        if (selectedCategory == Category.ALL) return MODS;
+        return MODS.stream().filter(m -> m.category == selectedCategory).toList();
+    }
+
+    // --- Themes Tab ---
+    private void renderThemesTab(DrawContext context, int x, int y, int width, int mouseX, int mouseY, int accent) {
+        String[] themeNames = {"AZURE", "EMBER", "VIOLET", "ROSE", "MINT", "FROST", "CHROMA (RGB)"};
+        int[] colors = {0xff49d8ce, 0xffff8a5b, 0xffa78bfa, 0xfff472b6, 0xff80e0a0, 0xffe6edf7, AzureClient.getChromaColor(0)};
         AzureConfig config = AzureClient.config();
-        drawFeatureCard(context, x, y, 190, 68, mouseX, mouseY,
-            "Custom crosshair", "+", "Replace vanilla reticle", config.customCrosshair);
-        drawCrosshairPreview(context, x + 230, y + 4, mouseX, mouseY);
 
-        int styleY = y + 83;
-        String[] styles = {"CROSS", "DOT", "RING"};
-        int styleWidth = 91;
-        for (int index = 0; index < styles.length; index++) {
-            int styleX = x + index * (styleWidth + 7);
-            boolean active = config.crosshairStyle == index;
-            boolean hovered = inside(mouseX, mouseY, styleX, styleY, styleWidth, 30);
-            drawChip(context, styleX, styleY, styleWidth, 30, styles[index], active, hovered);
+        context.drawTextWithShadow(textRenderer, "SELECT COLOR SCHEME", x, y, 0xffa0b3c9);
+
+        int chipWidth = 110;
+        int chipHeight = 44;
+        int startY = y + 16;
+        for (int i = 0; i < themeNames.length; i++) {
+            int col = i % 3;
+            int row = i / 3;
+            int chipX = x + col * (chipWidth + 12);
+            int chipY = startY + row * (chipHeight + 10);
+            boolean active = config.theme == i;
+            boolean hovered = inside(mouseX, mouseY, chipX, chipY, chipWidth, chipHeight);
+
+            context.fill(chipX, chipY, chipX + chipWidth, chipY + chipHeight,
+                active ? 0xff1e2d3e : (hovered ? 0xff162232 : 0xff101724));
+            context.fill(chipX, chipY, chipX + chipWidth, chipY + 3, colors[i]);
+            AzureHud.drawBorder(context, chipX, chipY, chipWidth, chipHeight,
+                active ? colors[i] : (hovered ? 0x88547094 : 0x333b4e68));
+            context.drawCenteredTextWithShadow(textRenderer, themeNames[i], chipX + chipWidth / 2, chipY + 20,
+                active ? colors[i] : 0xfff0f4fa);
         }
-        drawValueControl(context, x, y + 124, "SIZE", config.crosshairSize, 3, 16, 0, mouseX, mouseY);
-        drawValueControl(context, x, y + 165, "GAP", config.crosshairGap, 1, 12, 1, mouseX, mouseY);
-        drawValueControl(context, x, y + 206, "THICKNESS", config.crosshairThickness, 1, 6, 2, mouseX, mouseY);
-        drawPalette(context, x, y + 255, config.crosshairColor, mouseX, mouseY);
-        drawCompactToggleCard(context, x, y + 284, 190, 42, mouseX, mouseY,
-            "HIT COLOR", config.crosshairHitColor);
-        drawCompactToggleCard(context, x + 199, y + 284, 190, 42, mouseX, mouseY,
-            "CENTER DOT", config.crosshairCenterDot);
-        drawCompactToggleCard(context, x, y + 333, 190, 42, mouseX, mouseY,
-            "DARK OUTLINE", config.crosshairOutline);
-        drawPalette(context, x + 199, y + 345, config.crosshairHitColorValue, PALETTE, mouseX, mouseY);
-        drawValueControl(context, x, y + 382, "CROSSHAIR OPACITY", config.crosshairOpacity, 20, 100, 6, mouseX, mouseY);
+
+        // Opacity Controls
+        int ctrlY = startY + 3 * (chipHeight + 10) + 10;
+        context.drawTextWithShadow(textRenderer, "TRANSPARENCY & OPACITY", x, ctrlY, 0xffa0b3c9);
+        drawSlider(context, x, ctrlY + 16, 240, "Menu Opacity", config.menuOpacity, 35, 100, mouseX, mouseY, accent);
+        drawSlider(context, x, ctrlY + 54, 240, "HUD Background Opacity", config.hudOpacity, 20, 100, mouseX, mouseY, accent);
     }
 
-    private void renderWorldTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        AzureConfig config = AzureClient.config();
-        drawFeatureCard(context, x, y, 190, 68, mouseX, mouseY,
-            "Fullbright", "+", "Adjustable brightness boost", config.fullBright);
-        drawFeatureCard(context, x + 199, y, 190, 68, mouseX, mouseY,
-            "Block outline", "O", "Custom target edge color", config.blockOutline);
-        drawFeatureCard(context, x, y + 78, 190, 68, mouseX, mouseY,
-            "Block information", "B", "Name and coordinates", config.showBlockOverlay);
-        drawValueControl(context, x, y + 158, "BRIGHTNESS", config.fullBrightLevel, 100, 300, 3, mouseX, mouseY);
-        int colorY = y + 196;
-        context.drawTextWithShadow(textRenderer, "OUTLINE COLOR", x, colorY, 0xffaab8cb);
-        drawPalette(context, x, colorY + 20, config.blockOutlineColor, mouseX, mouseY);
-        int freeLookY = y + 261;
-        drawActionCard(context, x, freeLookY, PANEL_WIDTH - 184 - 30, 42, mouseX, mouseY,
-            AzureClient.isFreeLookActive()
-                ? "FREE LOOK  ·  ON  (V to return)"
-                : "FREE LOOK  ·  OFF  (V to look around)",
-            AzureClient.isFreeLookActive() ? 0xff49d8ce : 0xffaab8cb);
-    }
-
-    private void renderToolsTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        drawFeatureCard(context, x, y, 190, 68, mouseX, mouseY,
-            "Toggle sprint", "S", "Press K while playing", AzureClient.isSprintToggled());
-        drawFeatureCard(context, x + 199, y, 190, 68, mouseX, mouseY,
-            "CPS counter", "C", "Attack clicks per second", AzureClient.config().showCps);
-        drawActionCard(context, x, y + 80, 190, 45, mouseX, mouseY,
-            "RECIPE BOOK  ·  PRESS R", 0xff8ab4ff);
-        drawActionCard(context, x + 199, y + 80, 190, 45, mouseX, mouseY,
-            "INVENTORY SORT  ·  SORT BUTTON", 0xff49d8ce);
-        drawCompactToggleCard(context, x, y + 137, PANEL_WIDTH - 184 - 30, 42, mouseX, mouseY,
-            "AUTO SPRINT  ·  FORWARD TO SPRINT, SNEAK TO WALK", AzureClient.config().autoSprint);
-        drawValueControl(context, x, y + 194, "ZOOM (HOLD C)", AzureClient.config().zoomLevel, 2, 10, 7, mouseX, mouseY);
-        context.drawTextWithShadow(textRenderer, "Sorting uses normal inventory clicks and only moves",
-            x, y + 238, 0xffaab8cb);
-        context.drawTextWithShadow(textRenderer, "the main inventory rows; your hotbar stays untouched.",
-            x, y + 254, 0xff8292a7);
-        context.drawTextWithShadow(textRenderer, "Recipe Book opens Minecraft's built-in crafting helper.",
-            x, y + 280, 0xffaab8cb);
-    }
-
-    private void renderThemesTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        AzureConfig config = AzureClient.config();
-        String[] themes = {"AZURE", "EMBER", "VIOLET", "ROSE", "MINT", "FROST"};
-        int[] colors = {0xff49d8ce, 0xffff8a5b, 0xffa78bfa, 0xfff472b6, 0xff80e0a0, 0xffe6edf7};
-        for (int index = 0; index < themes.length; index++) {
-            int chipX = x + (index % 3) * 97;
-            int chipY = y + (index / 3) * 51;
-            boolean selected = config.theme == index;
-            boolean hovered = inside(mouseX, mouseY, chipX, chipY, 90, 45);
-            context.fill(chipX, chipY, chipX + 90, chipY + 45, selected || hovered ? 0xff253444 : 0xff1a222d);
-            context.fill(chipX, chipY, chipX + 90, chipY + 3, colors[index]);
-            drawBorder(context, chipX, chipY, 90, 45,
-                selected ? colors[index] : hovered ? 0x88798da2 : 0x55435365);
-            context.drawCenteredTextWithShadow(textRenderer, themes[index], chipX + 45, chipY + 18,
-                selected ? colors[index] : 0xffc2cbd6);
-        }
-        context.drawTextWithShadow(textRenderer, "LIVE PREVIEW", x, y + 111, 0xffaab8cb);
-        int accent = config.accentColor();
-        context.fill(x, y + 133, x + 389, y + 169, withOpacity(0xff1a222d, config.menuOpacity));
-        context.fill(x, y + 133, x + 3, y + 169, accent);
-        context.drawTextWithShadow(textRenderer, "Azure Personal  ·  Active theme", x + 14, y + 146, 0xfff1f5fa);
-        drawValueControl(context, x, y + 185, "MENU OPACITY", config.menuOpacity, 35, 100, 4, mouseX, mouseY);
-        drawValueControl(context, x, y + 231, "HUD BACKGROUND", config.hudOpacity, 20, 100, 5, mouseX, mouseY);
-        context.drawTextWithShadow(textRenderer, "Opacity changes affect menu panels and HUD chips.",
-            x, y + 275, 0xff91a0b3);
-        context.drawTextWithShadow(textRenderer, "Theme and opacity preferences are saved locally.",
-            x, y + 293, 0xff8292a7);
-    }
-
-    private void renderPresetsTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        AzureConfig config = AzureClient.config();
-        int cardWidth = 190;
-        int cardHeight = 92;
-        drawPresetCard(context, x, y, cardWidth, cardHeight, mouseX, mouseY,
-            "PVP", "Fast read, low clutter", "FPS  ·  CPS  ·  keys", "pvp".equals(config.hudPreset),
-            0xfff472b6);
-        drawPresetCard(context, x + 199, y, cardWidth, cardHeight, mouseX, mouseY,
-            "SMP", "World details at a glance", "XYZ  ·  facing  ·  armor", "smp".equals(config.hudPreset),
-            0xff49d8ce);
-        drawPresetCard(context, x, y + 103, cardWidth, cardHeight, mouseX, mouseY,
-            "MINIMAL", "Only the essentials", "FPS  ·  CPS", "minimal".equals(config.hudPreset),
-            0xffffca78);
-        drawPresetCard(context, x + 199, y + 103, cardWidth, cardHeight, mouseX, mouseY,
-            "CUSTOM", "Your current arrangement", "Keep your own choices", "custom".equals(config.hudPreset),
-            0xffa78bfa);
-
-        int infoY = y + 218;
-        context.fill(x, infoY, x + 389, infoY + 68, withOpacity(0xff1a222d, config.menuOpacity));
-        context.fill(x, infoY, x + 3, infoY + 68, config.accentColor());
-        context.drawTextWithShadow(textRenderer, "SAVED FOR THIS INSTANCE", x + 14, infoY + 12, config.accentColor());
-        context.drawTextWithShadow(textRenderer, AzureConfig.instanceLabel(), x + 14, infoY + 31, 0xfff1f5fa);
-        context.drawTextWithShadow(textRenderer, "HUD layout stays private to this game instance.",
-            x + 14, infoY + 49, 0xff91a0b3);
-        context.drawTextWithShadow(textRenderer, "Tip  ·  Use EDIT HUD to place and scale each widget.",
-            x, infoY + 91, 0xff8292a7);
-    }
-
-    private void renderModsTab(DrawContext context, int x, int y) {
-        var mods = FabricLoader.getInstance().getAllMods().stream()
-            .sorted((left, right) -> left.getMetadata().getName()
-                .compareToIgnoreCase(right.getMetadata().getName()))
-            .toList();
-        int visibleRows = 10;
-        int maxScroll = Math.max(0, mods.size() - visibleRows);
-        modsScroll = Math.max(0, Math.min(modsScroll, maxScroll));
-        context.drawTextWithShadow(textRenderer, mods.size() + " loaded mods", x, y - 10,
-            AzureClient.config().accentColor());
-        for (int row = 0; row < visibleRows; row++) {
-            int index = modsScroll + row;
-            if (index >= mods.size()) break;
-            ModContainer mod = mods.get(index);
-            int rowY = y + row * 33;
-            context.fill(x, rowY, x + 389, rowY + 28,
-                withOpacity(0xff1a222d, AzureClient.config().menuOpacity));
-            context.fill(x, rowY, x + 3, rowY + 28, AzureClient.config().accentColor());
-            context.drawTextWithShadow(textRenderer, mod.getMetadata().getName(), x + 11, rowY + 5,
-                0xfff1f5fa);
-            context.drawTextWithShadow(textRenderer,
-                mod.getMetadata().getId() + "  ·  " + mod.getMetadata().getVersion().getFriendlyString(),
-                x + 11, rowY + 16, 0xff91a0b3);
-        }
-        if (mods.size() > visibleRows) {
-            context.drawTextWithShadow(textRenderer, "Scroll to browse all mods",
-                x, y + visibleRows * 33 + 2, 0xff8292a7);
-        }
-    }
-
-    private void renderCosmeticsTab(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        AzureConfig config = AzureClient.config();
-        int accent = config.accentColor();
-        int previewX = x + 116;
-        int previewY = y + 34;
-        context.fill(x, y, x + 389, y + 180, withOpacity(0xff1a222d, config.menuOpacity));
-        drawBorder(context, x, y, 389, 180, 0x55435365);
-        context.drawCenteredTextWithShadow(textRenderer, "FREE STARTER COSMETIC", x + 194, y + 14, accent);
-
-        int crownX = previewX;
-        int crownY = previewY + 35;
-        int black = 0xff10141b;
-        context.fill(crownX + 8, crownY + 25, crownX + 136, crownY + 53, black);
-        context.fill(crownX + 2, crownY + 19, crownX + 20, crownY + 48, black);
-        context.fill(crownX + 42, crownY + 4, crownX + 60, crownY + 48, black);
-        context.fill(crownX + 71, crownY - 5, crownX + 89, crownY + 48, black);
-        context.fill(crownX + 105, crownY + 4, crownX + 123, crownY + 48, black);
-        context.fill(crownX + 124, crownY + 18, crownX + 142, crownY + 48, black);
-        context.fill(crownX + 5, crownY + 49, crownX + 140, crownY + 55, accent);
-        context.fill(crownX + 61, crownY + 31, crownX + 68, crownY + 47, accent);
-        context.fill(crownX + 78, crownY + 25, crownX + 85, crownY + 47, accent);
-        context.fill(crownX + 95, crownY + 31, crownX + 102, crownY + 47, accent);
-        context.fill(crownX + 68, crownY + 37, crownX + 95, crownY + 44, accent);
-        context.drawCenteredTextWithShadow(textRenderer, "OBSIDIAN  ·  AZURE MARK",
-            x + 194, y + 142, 0xffaab8cb);
-
-        drawActionCard(context, x, y + 198, 389, 42, mouseX, mouseY,
-            config.azureCrownEquipped
-                ? "AZURE CROWN  ·  EQUIPPED  ·  CLICK TO UNEQUIP"
-                : "AZURE CROWN  ·  OWNED FREE  ·  CLICK TO EQUIP",
-            config.azureCrownEquipped ? accent : 0xffaab8cb);
-        context.drawTextWithShadow(textRenderer, "Visible on your player in third-person view.",
-            x, y + 260, 0xffaab8cb);
-        context.drawTextWithShadow(textRenderer, "This client-side cosmetic is not server-synced.",
-            x, y + 278, 0xff8292a7);
-    }
-
-    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        return scrollMods(amount);
-    }
-
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        return scrollMods(verticalAmount);
-    }
-
-    private boolean scrollMods(double amount) {
-        if (selectedTab != Tab.MODS) return false;
-        int modCount = FabricLoader.getInstance().getAllMods().size();
-        modsScroll = Math.max(0, Math.min(Math.max(0, modCount - 10),
-            modsScroll + (amount < 0 ? 3 : -3)));
-        return true;
-    }
-
-    private void drawPresetCard(DrawContext context, int x, int y, int cardWidth, int cardHeight,
-                                int mouseX, int mouseY, String title, String description,
-                                String features, boolean active, int accent) {
-        boolean hovered = inside(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        context.fill(x, y, x + cardWidth, y + cardHeight,
-            active ? withOpacity(accent, 42) : hovered ? 0xff253444 : 0xff1a222d);
-        context.fill(x, y, x + 3, y + cardHeight, active ? accent : 0xff344355);
-        drawBorder(context, x, y, cardWidth, cardHeight,
-            active ? withOpacity(accent, 145) : hovered ? 0x88798da2 : 0x55435365);
-        context.drawTextWithShadow(textRenderer, title, x + 13, y + 13, active ? accent : 0xfff1f5fa);
-        context.drawTextWithShadow(textRenderer, active ? "ACTIVE" : "APPLY", x + cardWidth - 48, y + 14,
-            active ? accent : 0xff8292a7);
-        context.drawTextWithShadow(textRenderer, description, x + 13, y + 39, 0xffc2cbd6);
-        context.drawTextWithShadow(textRenderer, features, x + 13, y + 62, 0xff8292a7);
-        if (active) context.fill(x + 13, y + cardHeight - 5, x + cardWidth - 13, y + cardHeight - 3, accent);
-    }
-
-    private void drawFeatureCard(DrawContext context, int x, int y, int cardWidth, int cardHeight,
-                                 int mouseX, int mouseY, String label, String icon, String description,
-                                 boolean enabled) {
-        boolean hovered = inside(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        context.fill(x, y, x + cardWidth, y + cardHeight,
-            hovered ? 0xff253444 : enabled ? 0xff202a36 : 0xff1a222d);
-        int accent = AzureClient.config().accentColor();
-        context.fill(x, y, x + 2, y + cardHeight, enabled ? accent : 0xff344355);
-        drawBorder(context, x, y, cardWidth, cardHeight,
-            hovered ? 0x99798da2 : enabled ? withOpacity(accent, 85) : 0x55435365);
-        context.drawTextWithShadow(textRenderer, icon, x + 12, y + 12, enabled ? accent : 0xff92a1b4);
-        context.drawTextWithShadow(textRenderer, label, x + 32, y + 9, 0xfff1f5fa);
-        context.drawTextWithShadow(textRenderer, description, x + 32, y + 25, 0xff91a0b3);
-        int pillX = x + cardWidth - 38;
-        int pillY = y + cardHeight - 21;
-        context.fill(pillX, pillY, pillX + 27, pillY + 13, enabled ? accent : 0xff394452);
-        context.fill(enabled ? pillX + 15 : pillX + 2, pillY + 2, enabled ? pillX + 25 : pillX + 12,
-            pillY + 11, 0xfff5f7ff);
-    }
-
-    private void drawCompactToggleCard(DrawContext context, int x, int y, int cardWidth, int cardHeight,
-                                       int mouseX, int mouseY, String label, boolean enabled) {
-        boolean hovered = inside(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        int accent = AzureClient.config().accentColor();
-        context.fill(x, y, x + cardWidth, y + cardHeight, hovered ? 0xff253444 : 0xff1a222d);
-        context.fill(x, y, x + 2, y + cardHeight, enabled ? accent : 0xff344355);
-        drawBorder(context, x, y, cardWidth, cardHeight,
-            hovered ? 0x99798da2 : enabled ? withOpacity(accent, 85) : 0x55435365);
-        context.drawTextWithShadow(textRenderer, label, x + 12, y + 16, 0xfff1f5fa);
-        String state = enabled ? "ON" : "OFF";
-        context.drawTextWithShadow(textRenderer, state, x + cardWidth - 50, y + 16,
-            enabled ? accent : 0xff8292a7);
-        context.fill(x + cardWidth - 28, y + 14, x + cardWidth - 8, y + 27,
-            enabled ? accent : 0xff394452);
-        int knobX = enabled ? x + cardWidth - 17 : x + cardWidth - 27;
-        context.fill(knobX, y + 16, knobX + 7, y + 25, 0xfff5f7ff);
-    }
-
-    private void drawActionCard(DrawContext context, int x, int y, int cardWidth, int cardHeight,
-                                int mouseX, int mouseY, String label, int accent) {
-        boolean hovered = inside(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        context.fill(x, y, x + cardWidth, y + cardHeight, hovered ? 0xff253444 : 0xff1a222d);
-        context.fill(x, y, x + 2, y + cardHeight, accent);
-        drawBorder(context, x, y, cardWidth, cardHeight,
-            hovered ? 0x99798da2 : withOpacity(accent, 90));
-        context.drawCenteredTextWithShadow(textRenderer, label, x + cardWidth / 2, y + (cardHeight - 8) / 2,
-            hovered ? 0xfff5f7ff : accent);
-    }
-
-    private void drawChip(DrawContext context, int x, int y, int chipWidth, int chipHeight,
-                          String label, boolean active, boolean hovered) {
-        context.fill(x, y, x + chipWidth, y + chipHeight,
-            active ? 0xff25423f : hovered ? 0xff253444 : 0xff1a222d);
-        int accent = AzureClient.config().accentColor();
-        if (active) context.fill(x, y, x + chipWidth, y + 2, accent);
-        context.drawCenteredTextWithShadow(textRenderer, label, x + chipWidth / 2, y + (chipHeight - 8) / 2,
-            active ? accent : 0xffc2cbd6);
-    }
-
-    private void drawValueControl(DrawContext context, int x, int y, String label, int value,
-                                  int min, int max, int property, int mouseX, int mouseY) {
-        int controlWidth = PANEL_WIDTH - 184 - 30;
-        context.drawTextWithShadow(textRenderer, label, x, y + 8, 0xffaab8cb);
-        int buttonX = x + 128;
-        drawChip(context, buttonX, y, 36, 25, "−", false, inside(mouseX, mouseY, buttonX, y, 36, 25));
-        context.drawCenteredTextWithShadow(textRenderer, Integer.toString(value), buttonX + 69, y + 8, 0xfff0f4fa);
-        int plusX = buttonX + 102;
-        drawChip(context, plusX, y, 36, 25, "+", false, inside(mouseX, mouseY, plusX, y, 36, 25));
-        int barX = plusX + 47;
-        int barWidth = Math.max(18, controlWidth - (barX - x) - 4);
-        context.fill(barX, y + 11, barX + barWidth, y + 14, 0xff344152);
-        int fillWidth = (int) ((barWidth - 4) * ((value - min) / (double) Math.max(1, max - min)));
-        context.fill(barX, y + 11, barX + 3 + fillWidth, y + 14, AzureClient.config().accentColor());
-    }
-
-    private void drawPalette(DrawContext context, int x, int y, int selectedColor, int mouseX, int mouseY) {
-        drawPalette(context, x, y, selectedColor, PALETTE, mouseX, mouseY);
-    }
-
-    private void drawPalette(DrawContext context, int x, int y, int selectedColor, int[] colors, int mouseX, int mouseY) {
-        for (int index = 0; index < colors.length; index++) {
-            int colorX = x + index * 30;
-            boolean selected = colors[index] == selectedColor;
-            if (selected) context.fill(colorX - 3, y - 3, colorX + 20, y + 20, 0xfff0f4fa);
-            boolean hovered = inside(mouseX, mouseY, colorX - 2, y - 2, 20, 20);
-            context.fill(colorX, y, colorX + (hovered ? 17 : 15), y + (hovered ? 17 : 15),
-                colors[index]);
-        }
-    }
-
-    private static int withOpacity(int color, int opacityPercent) {
-        int alpha = Math.max(0, Math.min(255, opacityPercent * 255 / 100));
-        return (color & 0x00ffffff) | (alpha << 24);
-    }
-
-    private static void drawBorder(DrawContext context, int x, int y, int borderWidth, int borderHeight, int color) {
-        context.fill(x, y, x + borderWidth, y + 1, color);
-        context.fill(x, y + borderHeight - 1, x + borderWidth, y + borderHeight, color);
-        context.fill(x, y + 1, x + 1, y + borderHeight - 1, color);
-        context.fill(x + borderWidth - 1, y + 1, x + borderWidth, y + borderHeight - 1, color);
-    }
-
-    private void drawCrosshairPreview(DrawContext context, int x, int y, int mouseX, int mouseY) {
-        AzureConfig config = AzureClient.config();
-        int size = Math.min(config.crosshairSize, 12);
-        int centerX = x + 54;
-        int centerY = y + 30;
-        context.fill(x, y, x + 126, y + 67, 0xff111821);
-        context.drawCenteredTextWithShadow(textRenderer, "PREVIEW", centerX, y + 7, 0xff8292a7);
-        int color = withOpacity(config.crosshairColor, config.crosshairOpacity);
-        switch (config.crosshairStyle) {
-            case 1 -> context.fill(centerX - 2, centerY - 2, centerX + 3, centerY + 3, color);
-            case 2 -> {
-                context.fill(centerX - size, centerY - 1, centerX + size + 1, centerY + 2, color);
-                context.fill(centerX - 1, centerY - size, centerX + 2, centerY + size + 1, color);
-                context.fill(centerX - size + 2, centerY - 2, centerX + size - 1, centerY + 3, 0xff111821);
-                context.fill(centerX - 2, centerY - size + 2, centerX + 3, centerY + size - 1, 0xff111821);
-            }
-            default -> {
-                int gap = config.crosshairGap;
-                int thickness = config.crosshairThickness;
-                context.fill(centerX - thickness / 2, centerY - gap - size, centerX + (thickness + 1) / 2,
-                    centerY - gap, color);
-                context.fill(centerX - thickness / 2, centerY + gap + 1, centerX + (thickness + 1) / 2,
-                    centerY + gap + size + 1, color);
-                context.fill(centerX - gap - size, centerY - thickness / 2, centerX - gap,
-                    centerY + (thickness + 1) / 2, color);
-                context.fill(centerX + gap + 1, centerY - thickness / 2, centerX + gap + size + 1,
-                    centerY + (thickness + 1) / 2, color);
-            }
-        }
-        if (config.crosshairCenterDot) {
-            context.fill(centerX - 1, centerY - 1, centerX + 2, centerY + 2, color);
-        }
-    }
-
-    private static boolean inside(int mouseX, int mouseY, int x, int y, int targetWidth, int targetHeight) {
-        return mouseX >= x && mouseX < x + targetWidth && mouseY >= y && mouseY < y + targetHeight;
-    }
-
-    private static boolean hudFeatureEnabled(int index) {
-        AzureConfig config = AzureClient.config();
-        return switch (index) {
-            case 0 -> config.showFps;
-            case 1 -> config.showKeycaps;
-            case 2 -> config.showBlockOverlay;
-            case 3 -> config.showArmor;
-            case 4 -> config.showCoordinates;
-            default -> config.showDirection;
+    // --- Presets Tab ---
+    private void renderPresetsTab(DrawContext context, int x, int y, int width, int mouseX, int mouseY, int accent) {
+        String[] titles = {"PVP / HYPIXEL", "BEDWARS & BRIDGE", "SURVIVAL / SMP", "MINIMALIST"};
+        String[] ids = {"pvp", "bedwars", "smp", "minimal"};
+        String[] descs = {
+            "Watermark, Dual CPS, Keystrokes, Armor, Combo, Reach, Low Fire, No Hurt Cam",
+            "Watermark, Keystrokes, Dual CPS, Coordinates, Direction, Dot Crosshair",
+            "Watermark, XYZ coords + Biome + Nether conversion, Potions, Compass, Clock",
+            "Watermark, FPS, CPS, Ping. Clean and distraction-free."
         };
+        int[] presetColors = {0xffff4757, 0xff49d8ce, 0xff80e0a0, 0xffffca78};
+
+        int cardW = width;
+        int cardH = 58;
+        for (int i = 0; i < titles.length; i++) {
+            int cardY = y + i * (cardH + 10);
+            boolean isCur = ids[i].equalsIgnoreCase(AzureClient.config().hudPreset);
+            boolean hovered = inside(mouseX, mouseY, x, cardY, cardW, cardH);
+
+            context.fill(x, cardY, x + cardW, cardY + cardH, isCur ? 0xff1b2b3d : (hovered ? 0xff162232 : 0xff101723));
+            context.fill(x, cardY, x + 3, cardY + cardH, presetColors[i]);
+            AzureHud.drawBorder(context, x, cardY, cardW, cardH, isCur ? presetColors[i] : 0x33445873);
+
+            context.drawTextWithShadow(textRenderer, titles[i], x + 14, cardY + 12, isCur ? presetColors[i] : 0xfff0f4fa);
+            context.drawTextWithShadow(textRenderer, isCur ? "[ACTIVE PROFILE]" : "[CLICK TO APPLY]",
+                x + cardW - 110, cardY + 12, isCur ? presetColors[i] : 0xff7b91a8);
+            context.drawTextWithShadow(textRenderer, descs[i], x + 14, cardY + 32, 0xff8ca0b8);
+        }
     }
 
-    private static void toggleHudFeature(int index) {
+    // --- Cosmetics Tab ---
+    private void renderCosmeticsTab(DrawContext context, int x, int y, int width, int mouseX, int mouseY, int accent) {
         AzureConfig config = AzureClient.config();
-        switch (index) {
-            case 0 -> config.showFps = !config.showFps;
-            case 1 -> config.showKeycaps = !config.showKeycaps;
-            case 2 -> config.showBlockOverlay = !config.showBlockOverlay;
-            case 3 -> config.showArmor = !config.showArmor;
-            case 4 -> config.showCoordinates = !config.showCoordinates;
-            default -> config.showDirection = !config.showDirection;
-        }
-        config.hudPreset = "custom";
-        config.save();
+        context.fill(x, y, x + width, y + 170, 0xff101723);
+        AzureHud.drawBorder(context, x, y, width, 170, 0x33455973);
+
+        context.drawCenteredTextWithShadow(textRenderer, "✦ FREE STARTER COSMETIC · AZURE CROWN ✦",
+            x + width / 2, y + 14, accent);
+        context.drawCenteredTextWithShadow(textRenderer, "Equip in-game Obsidian & Azure headwear (visible in F5 third-person)",
+            x + width / 2, y + 30, 0xff8ca0b8);
+
+        // Crown Visual Graphic
+        int cx = x + width / 2 - 40;
+        int cy = y + 65;
+        int dark = 0xff111824;
+        context.fill(cx + 4, cy + 18, cx + 76, cy + 34, dark);
+        context.fill(cx, cy + 12, cx + 12, cy + 34, dark);
+        context.fill(cx + 26, cy + 4, cx + 38, cy + 34, dark);
+        context.fill(cx + 42, cy + 4, cx + 54, cy + 34, dark);
+        context.fill(cx + 68, cy + 12, cx + 80, cy + 34, dark);
+        context.fill(cx + 2, cy + 32, cx + 78, cy + 36, accent);
+        context.fill(cx + 36, cy + 18, cx + 44, cy + 26, accent);
+
+        // Toggle button
+        int btnW = 200;
+        int btnH = 34;
+        int btnX = x + (width - btnW) / 2;
+        int btnY = y + 120;
+        boolean btnHov = inside(mouseX, mouseY, btnX, btnY, btnW, btnH);
+        context.fill(btnX, btnY, btnX + btnW, btnY + btnH, btnHov ? 0xff253a4e : 0xff162332);
+        AzureHud.drawBorder(context, btnX, btnY, btnW, btnH, config.azureCrownEquipped ? accent : 0x444b6485);
+        context.drawCenteredTextWithShadow(textRenderer,
+            config.azureCrownEquipped ? "EQUIPPED · CLICK TO REMOVE" : "EQUIP AZURE CROWN",
+            btnX + btnW / 2, btnY + 13, config.azureCrownEquipped ? accent : 0xfff0f4fa);
+    }
+
+    private void drawSlider(DrawContext context, int x, int y, int sliderWidth, String label,
+                            int value, int min, int max, int mouseX, int mouseY, int accent) {
+        context.drawTextWithShadow(textRenderer, label + ": " + value + "%", x, y, 0xffd2dbe5);
+        int trackY = y + 14;
+        int trackH = 8;
+        context.fill(x, trackY, x + sliderWidth, trackY + trackH, 0xff16202c);
+        float fillRatio = (value - min) / (float) Math.max(1, max - min);
+        int fillW = (int) (sliderWidth * fillRatio);
+        context.fill(x, trackY, x + fillW, trackY + trackH, accent);
+        AzureHud.drawBorder(context, x, trackY, sliderWidth, trackH, 0x444b6485);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
         int left = panelLeft();
-        int top = panelTop();
-        int lift = (int) ((1.0 - Math.min(1.0, (System.currentTimeMillis() - openedAt) / 260.0)) * 12);
-        int adjustedY = (int) mouseY - lift;
-        int navY = top + 78;
-        for (int index = 0; index < TABS.length; index++) {
-            if (inside((int) mouseX, adjustedY, left + 13, navY + index * 34, 142, 30)) {
-                selectedTab = TABS[index];
+        int top = panelTop() + panelEntranceOffset();
+        int sidebarWidth = 156;
+
+        // 1. Search Box Click
+        int searchX = left + sidebarWidth + 16;
+        int searchY = top + 12;
+        if (inside((int) mouseX, (int) mouseY, searchX, searchY, 190, 22)) {
+            searchFocused = true;
+            return true;
+        } else {
+            searchFocused = false;
+        }
+
+        // 2. HUD Editor Button Click
+        int editorBtnX = searchX + 190 + 10;
+        if (inside((int) mouseX, (int) mouseY, editorBtnX, searchY, 86, 22)) {
+            client.setScreen(new AzureHudEditorScreen(this));
+            return true;
+        }
+
+        // 3. Header Preset Pills Click
+        String[] presets = {"pvp", "bedwars", "smp", "minimal"};
+        int pillStartX = editorBtnX + 86 + 10;
+        for (int i = 0; i < presets.length; i++) {
+            int px = pillStartX + i * 48;
+            if (inside((int) mouseX, (int) mouseY, px, searchY, 44, 22)) {
+                AzureClient.config().applyHudPreset(presets[i]);
                 return true;
             }
         }
 
-        int x = contentLeft();
-        int y = contentTop();
-        if (selectedTab == Tab.HUD) {
-            int gap = 9;
-            int cardWidth = (PANEL_WIDTH - 184 - 30 - gap) / 2;
-            int cardHeight = 68;
-            for (int index : HUD_FEATURES) {
-                int cardX = x + (index % 2) * (cardWidth + gap);
-                int cardY = y + (index / 2) * (cardHeight + 9);
-                if (inside((int) mouseX, adjustedY, cardX, cardY, cardWidth, cardHeight)) {
-                    toggleHudFeature(index);
-                    return true;
-                }
-            }
-            int editY = y + 3 * (cardHeight + 9);
-            if (inside((int) mouseX, adjustedY, x, editY, PANEL_WIDTH - 184 - 30, 36)) {
-                client.setScreen(new AzureHudEditorScreen(this));
+        // 4. Sidebar Tabs Click
+        int tabStartY = top + 52;
+        int tabHeight = 28;
+        for (int i = 0; i < CATEGORIES.length; i++) {
+            int ty = tabStartY + i * 31;
+            if (inside((int) mouseX, (int) mouseY, left + 10, ty, sidebarWidth - 20, tabHeight)) {
+                selectedCategory = CATEGORIES[i];
+                searchQuery = "";
+                scrollOffset = 0;
                 return true;
             }
-        } else if (selectedTab == Tab.CROSSHAIR) {
-            AzureConfig config = AzureClient.config();
-            if (inside((int) mouseX, adjustedY, x, y, 190, 68)) {
-                config.customCrosshair = !config.customCrosshair;
-                config.save();
-                return true;
-            }
-            int styleY = y + 83;
-            int styleWidth = 91;
-            for (int index = 0; index < 3; index++) {
-                int styleX = x + index * (styleWidth + 7);
-                if (inside((int) mouseX, adjustedY, styleX, styleY, styleWidth, 30)) {
-                    config.crosshairStyle = index;
-                    config.save();
-                    return true;
-                }
-            }
-            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 124, 0) ||
-                handleValueClick(config, (int) mouseX, adjustedY, x, y + 165, 1) ||
-                handleValueClick(config, (int) mouseX, adjustedY, x, y + 206, 2)) return true;
-            int colorIndex = paletteIndex((int) mouseX, adjustedY, x, y + 255);
-            if (colorIndex >= 0) {
-                config.crosshairColor = PALETTE[colorIndex];
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x, y + 284, 190, 42)) {
-                config.crosshairHitColor = !config.crosshairHitColor;
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x + 199, y + 284, 190, 42)) {
-                config.crosshairCenterDot = !config.crosshairCenterDot;
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x, y + 333, 190, 42)) {
-                config.crosshairOutline = !config.crosshairOutline;
-                config.save();
-                return true;
-            }
-            colorIndex = paletteIndex((int) mouseX, adjustedY, x + 199, y + 345);
-            if (colorIndex >= 0) {
-                config.crosshairHitColorValue = PALETTE[colorIndex];
-                config.save();
-                return true;
-            }
-            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 382, 6)) return true;
-        } else if (selectedTab == Tab.WORLD) {
-            AzureConfig config = AzureClient.config();
-            if (inside((int) mouseX, adjustedY, x, y, 190, 68)) {
-                config.fullBright = !config.fullBright;
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x + 199, y, 190, 68)) {
-                config.blockOutline = !config.blockOutline;
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x, y + 78, 190, 68)) {
-                config.showBlockOverlay = !config.showBlockOverlay;
-                config.save();
-                return true;
-            }
-            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 158, 3)) return true;
-            int colorIndex = paletteIndex((int) mouseX, adjustedY, x, y + 190);
-            if (colorIndex >= 0) {
-                config.blockOutlineColor = PALETTE[colorIndex];
-                config.save();
-                return true;
-            }
-            if (inside((int) mouseX, adjustedY, x, y + 235, PANEL_WIDTH - 184 - 30, 42)) {
-                AzureClient.toggleFreeLook(client);
-                return true;
-            }
-        } else if (selectedTab == Tab.TOOLS &&
-            inside((int) mouseX, adjustedY, x, y, 190, 68)) {
-            AzureClient.setSprintToggled(!AzureClient.isSprintToggled());
-            return true;
-        } else if (selectedTab == Tab.TOOLS &&
-            inside((int) mouseX, adjustedY, x + 199, y, 190, 68)) {
-            AzureClient.config().showCps = !AzureClient.config().showCps;
-            AzureClient.config().hudPreset = "custom";
-            AzureClient.config().save();
-            return true;
-        } else if (selectedTab == Tab.TOOLS &&
-            inside((int) mouseX, adjustedY, x, y + 137, PANEL_WIDTH - 184 - 30, 45)) {
-            AzureClient.setAutoSprint(!AzureClient.config().autoSprint);
-            return true;
-        } else if (selectedTab == Tab.TOOLS &&
-            inside((int) mouseX, adjustedY, x, y + 80, 190, 45)) {
-            AzureClient.openRecipeBook(client);
-            return true;
-        } else if (selectedTab == Tab.TOOLS &&
-            inside((int) mouseX, adjustedY, x + 199, y + 80, 190, 45)) {
-            if (client.player != null) {
-                client.setScreen(new net.minecraft.client.gui.screen.ingame.InventoryScreen(client.player));
-            }
-            return true;
-        } else if (selectedTab == Tab.THEMES) {
-            AzureConfig config = AzureClient.config();
-            for (int index = 0; index < 6; index++) {
-                int chipX = x + (index % 3) * 97;
-                int chipY = y + (index / 3) * 51;
-                if (inside((int) mouseX, adjustedY, chipX, chipY, 90, 45)) {
-                    config.theme = index;
-                    config.save();
-                    return true;
-                }
-            }
-            if (handleValueClick(config, (int) mouseX, adjustedY, x, y + 185, 4) ||
-                handleValueClick(config, (int) mouseX, adjustedY, x, y + 231, 5)) return true;
-        } else if (selectedTab == Tab.PRESETS) {
-            String[] presetIds = {"pvp", "smp", "minimal", "custom"};
-            int cardWidth = 190;
-            int cardHeight = 92;
-            for (int index = 0; index < presetIds.length; index++) {
-                int cardX = x + (index % 2) * 199;
-                int cardY = y + (index / 2) * 103;
-                if (inside((int) mouseX, adjustedY, cardX, cardY, cardWidth, cardHeight)) {
-                    AzureClient.config().applyHudPreset(presetIds[index]);
-                    return true;
-                }
-            }
-        } else if (selectedTab == Tab.COSMETICS &&
-            inside((int) mouseX, adjustedY, x, y + 198, 389, 42)) {
-            AzureConfig config = AzureClient.config();
-            config.azureCrownEquipped = !config.azureCrownEquipped;
-            config.save();
-            return true;
         }
-        return true;
+
+        // 5. Mod Cards Grid Click
+        int contentX = left + sidebarWidth + 16;
+        int contentY = top + 46;
+        int contentWidth = PANEL_WIDTH - sidebarWidth - 28;
+        if (selectedCategory == Category.ALL || selectedCategory == Category.HUD ||
+            selectedCategory == Category.PVP || selectedCategory == Category.VISUALS ||
+            selectedCategory == Category.MECHANICS) {
+            List<ModEntry> list = getFilteredMods();
+            int columns = 2;
+            int cardGap = 8;
+            int cardWidth = (contentWidth - cardGap) / columns;
+            int cardHeight = 52;
+            int rowsPerPage = 6;
+            int visibleCount = rowsPerPage * columns;
+
+            for (int i = 0; i < visibleCount; i++) {
+                int index = scrollOffset * columns + i;
+                if (index >= list.size()) break;
+                int col = i % columns;
+                int row = i / columns;
+                int cardX = contentX + col * (cardWidth + cardGap);
+                int cardY = contentY + row * (cardHeight + cardGap);
+
+                if (inside((int) mouseX, (int) mouseY, cardX, cardY, cardWidth, cardHeight)) {
+                    list.get(index).toggle();
+                    return true;
+                }
+            }
+        } else if (selectedCategory == Category.THEMES) {
+            AzureConfig config = AzureClient.config();
+            int chipWidth = 110;
+            int chipHeight = 44;
+            int startY = contentY + 16;
+            for (int i = 0; i < 7; i++) {
+                int col = i % 3;
+                int row = i / 3;
+                int chipX = contentX + col * (chipWidth + 12);
+                int chipY = startY + row * (chipHeight + 10);
+                if (inside((int) mouseX, (int) mouseY, chipX, chipY, chipWidth, chipHeight)) {
+                    config.theme = i;
+                    config.save();
+                    return true;
+                }
+            }
+
+            int ctrlY = startY + 3 * (chipHeight + 10) + 10;
+            if (inside((int) mouseX, (int) mouseY, contentX, ctrlY + 28, 240, 12)) {
+                draggingMenuOpacity = true;
+                updateOpacitySlider(mouseX, contentX, 240, 35, 100, true);
+                return true;
+            }
+            if (inside((int) mouseX, (int) mouseY, contentX, ctrlY + 66, 240, 12)) {
+                draggingHudOpacity = true;
+                updateOpacitySlider(mouseX, contentX, 240, 20, 100, false);
+                return true;
+            }
+        } else if (selectedCategory == Category.PRESETS) {
+            String[] ids = {"pvp", "bedwars", "smp", "minimal"};
+            int cardH = 58;
+            for (int i = 0; i < ids.length; i++) {
+                int cy = contentY + i * (cardH + 10);
+                if (inside((int) mouseX, (int) mouseY, contentX, cy, contentWidth, cardH)) {
+                    AzureClient.config().applyHudPreset(ids[i]);
+                    return true;
+                }
+            }
+        } else if (selectedCategory == Category.COSMETICS) {
+            int btnW = 200;
+            int btnH = 34;
+            int btnX = contentX + (contentWidth - btnW) / 2;
+            int btnY = contentY + 120;
+            if (inside((int) mouseX, (int) mouseY, btnX, btnY, btnW, btnH)) {
+                AzureConfig config = AzureClient.config();
+                config.azureCrownEquipped = !config.azureCrownEquipped;
+                config.save();
+                return true;
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private static boolean handleValueClick(AzureConfig config, int mouseX, int mouseY, int x, int y, int property) {
-        int minusX = x + 128;
-        int plusX = minusX + 102;
-        int next;
-        if (inside(mouseX, mouseY, minusX, y, 36, 25)) {
-            next = changeCrosshairValue(config, property, -1);
-        } else if (inside(mouseX, mouseY, plusX, y, 36, 25)) {
-            next = changeCrosshairValue(config, property, 1);
-        } else {
+    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        int top = panelTop() + panelEntranceOffset();
+        int contentX = panelLeft() + 156 + 16;
+        int contentY = top + 46;
+        int contentWidth = PANEL_WIDTH - 156 - 28;
+        if (mouseX < contentX || mouseX >= contentX + contentWidth ||
+            mouseY < contentY || mouseY >= top + PANEL_HEIGHT - 24) {
             return false;
         }
-        config.save();
+        if (selectedCategory == Category.THEMES || selectedCategory == Category.PRESETS ||
+            selectedCategory == Category.COSMETICS) {
+            return false;
+        }
+        int rows = (getFilteredMods().size() + 1) / 2;
+        int maxScroll = Math.max(0, rows - 6);
+        scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset + (amount < 0 ? 1 : -1)));
         return true;
     }
 
-    private static int changeCrosshairValue(AzureConfig config, int property, int amount) {
-        return switch (property) {
-            case 0 -> config.crosshairSize = Math.max(3, Math.min(16, config.crosshairSize + amount));
-            case 1 -> config.crosshairGap = Math.max(1, Math.min(12, config.crosshairGap + amount));
-            case 2 -> config.crosshairThickness = Math.max(1, Math.min(6, config.crosshairThickness + amount));
-            case 3 -> config.fullBrightLevel = Math.max(100, Math.min(300, config.fullBrightLevel + amount * 25));
-            case 4 -> config.menuOpacity = Math.max(35, Math.min(100, config.menuOpacity + amount * 5));
-            case 5 -> config.hudOpacity = Math.max(20, Math.min(100, config.hudOpacity + amount * 5));
-            case 7 -> config.zoomLevel = Math.max(2, Math.min(10, config.zoomLevel + amount));
-            default -> config.crosshairOpacity = Math.max(20, Math.min(100, config.crosshairOpacity + amount * 5));
-        };
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return mouseScrolled(mouseX, mouseY, verticalAmount);
     }
 
-    private static int paletteIndex(int mouseX, int mouseY, int x, int y) {
-        for (int index = 0; index < PALETTE.length; index++) {
-            int colorX = x + index * 30;
-            if (inside(mouseX, mouseY, colorX - 2, y - 2, 20, 20)) return index;
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (button == 0 && draggingMenuOpacity) {
+            int contentX = panelLeft() + 156 + 16;
+            updateOpacitySlider(mouseX, contentX, 240, 35, 100, true);
+            return true;
         }
-        return -1;
+        if (button == 0 && draggingHudOpacity) {
+            int contentX = panelLeft() + 156 + 16;
+            updateOpacitySlider(mouseX, contentX, 240, 20, 100, false);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            draggingMenuOpacity = false;
+            draggingHudOpacity = false;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    private void updateOpacitySlider(double mouseX, int x, int sliderWidth, int min, int max, boolean menu) {
+        int value = Math.max(min, Math.min(max,
+            (int) Math.round(min + ((mouseX - x) / sliderWidth) * (max - min))));
+        AzureConfig config = AzureClient.config();
+        if (menu) config.menuOpacity = value;
+        else config.hudOpacity = value;
+        config.save();
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_RIGHT_SHIFT || keyCode == GLFW.GLFW_KEY_ESCAPE) {
+        if (searchFocused) {
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE && !searchQuery.isEmpty()) {
+                searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
+                scrollOffset = 0;
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_ENTER) {
+                searchFocused = false;
+                return true;
+            }
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_RIGHT_SHIFT || (keyCode == GLFW.GLFW_KEY_ESCAPE && !searchFocused)) {
             close();
             return true;
         }
-        if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT) {
-            selectedTab = TABS[(selectedTab.ordinal() + (keyCode == GLFW.GLFW_KEY_RIGHT ? 1 : 2)) % TABS.length];
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (searchFocused && chr >= 32 && chr != 127) {
+            searchQuery += chr;
+            scrollOffset = 0;
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.charTyped(chr, modifiers);
     }
 
     @Override
@@ -777,5 +742,28 @@ public final class AzureMenuScreen extends Screen {
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    private static boolean inside(int mouseX, int mouseY, int x, int y, int w, int h) {
+        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
+    private static int interpolateColor(int colorA, int colorB, float ratio) {
+        ratio = Math.max(0.0f, Math.min(1.0f, ratio));
+        int aA = (colorA >> 24) & 0xff;
+        int rA = (colorA >> 16) & 0xff;
+        int gA = (colorA >> 8) & 0xff;
+        int bA = colorA & 0xff;
+
+        int aB = (colorB >> 24) & 0xff;
+        int rB = (colorB >> 16) & 0xff;
+        int gB = (colorB >> 8) & 0xff;
+        int bB = colorB & 0xff;
+
+        int a = (int) (aA + (aB - aA) * ratio);
+        int r = (int) (rA + (rB - rA) * ratio);
+        int g = (int) (gA + (gB - gA) * ratio);
+        int b = (int) (bA + (bB - bA) * ratio);
+        return (a << 24) | (r << 16) | (g << 8) | b;
     }
 }

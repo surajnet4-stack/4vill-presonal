@@ -18,7 +18,7 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.Identifier;
 
 public final class AzureCrownFeatureRenderer extends FeatureRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> {
-    private static final Identifier TEXTURE = new Identifier("azureclient", "textures/cosmetics/white.png");
+    private static final Identifier TEXTURE = AzureCompat.id("azureclient", "textures/cosmetics/white.png");
     private static final int CROWN_COLOR = 0xff11151b;
     private static final int LOGO_COLOR = 0xff49d8ce;
     private final ModelPart crown;

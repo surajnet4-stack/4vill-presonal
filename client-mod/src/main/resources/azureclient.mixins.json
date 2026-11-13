@@ -7,6 +7,7 @@
     "CameraMixin",
     "EntityMixin",
     "GameRendererMixin",
+    "InGameOverlayRendererMixin",
     "InventoryScreenMixin",
     "InGameHudMixin",
     "LightmapTextureManagerMixin",

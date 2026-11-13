@@ -13,7 +13,7 @@ module.exports = {
     'playstyle-recommendations.js',
     'assets/**/*',
     'bin/**/*',
-    'client-mod/build/libs/azure-client-*-1.0.1.jar',
+    'client-mod/build/libs/azure-client-*-1.1.1.jar',
     'package.json'
   ],
   asar: true,

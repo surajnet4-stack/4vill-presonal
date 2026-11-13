@@ -3,7 +3,7 @@
   "id": "azureclient",
   "version": "${version}",
   "name": "Azure Personal Client",
-  "description": "Configurable client HUD and settings menu for Azure Personal.",
+  "description": "A polished Azure Personal home screen, configurable client HUD, cosmetics, and in-game settings.",
   "environment": "client",
   "entrypoints": {
     "client": [

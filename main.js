@@ -15,7 +15,7 @@ const { isPathInside, resolveManagedPath } = require('./path-safety');
 const { ensureAzureResourcePack } = require('./azure-resource-pack');
 
 const DEFAULT_GAME_VERSION = '1.20.1';
-const AZURE_CLIENT_MOD_VERSION = '1.0.1';
+const AZURE_CLIENT_MOD_VERSION = '1.1.1';
 const MINECRAFT_MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 const FABRIC_META_URL = 'https://meta.fabricmc.net/v2';
 const FORGE_PROMOTIONS_URL = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';

@@ -1,8 +1,10 @@
 {
-  "key.azureclient.menu": "Open Azure Personal menu",
-  "key.azureclient.freelook": "Toggle free look",
-  "key.azureclient.recipe": "Open recipe book",
-  "key.azureclient.sprint": "Toggle sprint",
-  "key.azureclient.zoom": "Hold to zoom",
+  "key.azureclient.menu": "Open Azure Personal Menu",
+  "key.azureclient.hudeditor": "Open HUD Editor",
+  "key.azureclient.freelook": "Toggle Free Look",
+  "key.azureclient.recipe": "Open Recipe Book",
+  "key.azureclient.sprint": "Toggle Sprint",
+  "key.azureclient.sneak": "Toggle Sneak",
+  "key.azureclient.zoom": "Hold to Zoom",
   "key.categories.azureclient": "Azure Personal"
 }
