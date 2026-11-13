@@ -736,6 +736,7 @@
     .status-line[data-kind="warning"] .status-indicator { background: #f2c879; }
     .status-line[data-kind="error"] .status-indicator { background: var(--danger); box-shadow: 0 0 10px color-mix(in srgb, var(--danger) 45%, transparent); }
     .status-line[data-kind="success"] .status-indicator { background: var(--success); }
+    .status-line[data-kind="stopped"] .status-indicator { background: var(--muted); box-shadow: none; }
     #account-status[data-kind="error"] { color: var(--danger); }
     #account-status[data-kind="warning"] { color: #f2c879; }
     #account-status[data-kind="success"] { color: var(--success); }
@@ -855,7 +856,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>UPDATE</span>
         </button>
-        <span class="build-label">v1.0.8</span>
+        <span class="build-label">v1.0.9</span>
       </nav>
 
       <main class="content">
@@ -1272,12 +1273,12 @@
               </div>
             </section>
             <section class="settings-card changelog-card" aria-labelledby="changelog-heading">
-              <h2 id="changelog-heading">What’s new · v1.0.8</h2>
+              <h2 id="changelog-heading">What’s new · v1.0.9</h2>
               <ul class="changelog-list">
-                <li>Play from a redesigned Minecraft home screen with clear singleplayer and multiplayer choices.</li>
-                <li>Enjoy smoother menu motion, responsive hover feedback, and a refined Azure visual theme.</li>
-                <li>Adjust client HUD opacity with draggable controls and browse features with focused scrolling.</li>
-                <li>Updated the bundled Fabric client mod and fixed menu control alignment during animations.</li>
+                <li>Fixed launcher status and controls getting stuck after Minecraft closes outside the launcher.</li>
+                <li>Added a Fabric client build for Minecraft 1.21.11 with a configurable Azure menu key.</li>
+                <li>Updated the Azure client mod to 1.1.2 across the supported game versions.</li>
+                <li>Kept the existing 1.20.1–1.20.4 Azure client features and launcher profiles intact.</li>
               </ul>
             </section>
             <section class="settings-card personalization-card" aria-labelledby="personalization-heading">
@@ -3337,7 +3338,7 @@
 
     if (window.launcher) {
       window.launcher.onStatus(({ message, kind }) => {
-        if (['success', 'error', 'cancelled'].includes(kind)) resetLaunchControls();
+        if (['success', 'error', 'cancelled', 'stopped'].includes(kind)) resetLaunchControls();
         setStatus(message, isLaunching && kind === 'info' ? 'busy' : kind);
       });
       window.launcher.onUpdateState(renderUpdateState);

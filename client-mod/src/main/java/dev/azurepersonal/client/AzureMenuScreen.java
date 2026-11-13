@@ -2,6 +2,7 @@ package dev.azurepersonal.client;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.option.ControlsOptionsScreen;
 import net.minecraft.text.Text;
 import net.fabricmc.loader.api.FabricLoader;
 import org.lwjgl.glfw.GLFW;
@@ -19,7 +20,8 @@ public final class AzureMenuScreen extends Screen {
         MECHANICS("MECHANICS", "Movement and gameplay utilities"),
         THEMES("THEMES & COLORS", "Color schemes and transparency"),
         PRESETS("PRESETS", "Pre-configured profiles"),
-        COSMETICS("COSMETICS", "Free cosmetics and accessories");
+        COSMETICS("COSMETICS", "Free cosmetics and accessories"),
+        CONTROLS("CONTROLS", "Change Azure key bindings");
 
         public final String title;
         public final String subtitle;
@@ -245,6 +247,7 @@ public final class AzureMenuScreen extends Screen {
             case THEMES -> renderThemesTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
             case PRESETS -> renderPresetsTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
             case COSMETICS -> renderCosmeticsTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
+            case CONTROLS -> renderControlsTab(context, contentX, contentY, contentWidth, mouseX, mouseY, accent);
             default -> renderModCardsGrid(context, contentX, contentY, contentWidth, contentHeight, mouseX, mouseY, accent, delta);
         }
 
@@ -505,6 +508,24 @@ public final class AzureMenuScreen extends Screen {
             btnX + btnW / 2, btnY + 13, config.azureCrownEquipped ? accent : 0xfff0f4fa);
     }
 
+    private void renderControlsTab(DrawContext context, int x, int y, int width, int mouseX, int mouseY, int accent) {
+        context.drawTextWithShadow(textRenderer, "CUSTOMIZE YOUR AZURE SHORTCUTS", x, y + 18, 0xfff0f4fa);
+        context.drawTextWithShadow(textRenderer, "Change the menu, HUD editor, zoom, and movement keys",
+            x, y + 38, 0xffaab8cb);
+        context.drawTextWithShadow(textRenderer, "in Minecraft's Controls screen under the Azure Personal category.",
+            x, y + 52, 0xffaab8cb);
+
+        int buttonWidth = Math.min(230, width);
+        int buttonX = x;
+        int buttonY = y + 88;
+        boolean hovered = inside(mouseX, mouseY, buttonX, buttonY, buttonWidth, 30);
+        context.fill(buttonX, buttonY, buttonX + buttonWidth, buttonY + 30,
+            hovered ? 0xff25384c : 0xff162332);
+        AzureHud.drawBorder(context, buttonX, buttonY, buttonWidth, 30, hovered ? 0xffffffff : accent);
+        context.drawCenteredTextWithShadow(textRenderer, "OPEN KEY BINDINGS",
+            buttonX + buttonWidth / 2, buttonY + 11, hovered ? 0xffffffff : accent);
+    }
+
     private void drawSlider(DrawContext context, int x, int y, int sliderWidth, String label,
                             int value, int min, int max, int mouseX, int mouseY, int accent) {
         context.drawTextWithShadow(textRenderer, label + ": " + value + "%", x, y, 0xffd2dbe5);
@@ -642,6 +663,13 @@ public final class AzureMenuScreen extends Screen {
                 config.save();
                 return true;
             }
+        } else if (selectedCategory == Category.CONTROLS) {
+            int buttonWidth = Math.min(230, contentWidth);
+            int buttonY = contentY + 88;
+            if (inside((int) mouseX, (int) mouseY, contentX, buttonY, buttonWidth, 30)) {
+                client.setScreen(new ControlsOptionsScreen(this, client.options));
+                return true;
+            }
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
@@ -657,7 +685,7 @@ public final class AzureMenuScreen extends Screen {
             return false;
         }
         if (selectedCategory == Category.THEMES || selectedCategory == Category.PRESETS ||
-            selectedCategory == Category.COSMETICS) {
+            selectedCategory == Category.COSMETICS || selectedCategory == Category.CONTROLS) {
             return false;
         }
         int rows = (getFilteredMods().size() + 1) / 2;

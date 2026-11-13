@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.6.12'
+    id 'fabric-loom' version '1.14.10'
 }
 
 version = project.mod_version
@@ -28,13 +28,23 @@ processResources {
     }
 }
 
+// Minecraft 1.21.x requires Java 21; older targets keep Java 17 bytecode.
+def is121 = project.minecraft_version.startsWith("1.21")
+def is12111 = project.minecraft_version == "1.21.11"
+def targetJava = is121 ? 21 : 17
+
+if (is12111) {
+    // Minecraft 1.21.11 has incompatible rendering and input APIs; keep its client entry point isolated.
+    sourceSets.main.java.setSrcDirs(['src/1.21.11/java'])
+    sourceSets.main.resources.setSrcDirs(['src/1.21.11/resources'])
+}
+
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
+    sourceCompatibility = is121 ? JavaVersion.VERSION_21 : JavaVersion.VERSION_17
+    targetCompatibility = sourceCompatibility
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.release = 17
+    options.release = targetJava
 }
