@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('launcher', {
   importModpack: () => ipcRenderer.invoke('explore:import-modpack'),
   getInstalledContent: (instance) => ipcRenderer.invoke('explore:installed', instance),
   removeInstalledContent: (instance, key) => ipcRenderer.invoke('explore:remove', instance, key),
+  allocateInstanceFolder: (instanceId, name) =>
+    ipcRenderer.invoke('instance:allocate-folder', instanceId, name),
   getInstanceMods: (instance) => ipcRenderer.invoke('instance:list-mods', instance),
   setInstanceModEnabled: (instance, fileName, enabled) =>
     ipcRenderer.invoke('instance:toggle-mod', instance, fileName, enabled),
@@ -27,6 +29,8 @@ contextBridge.exposeInMainWorld('launcher', {
   installUpdate: () => ipcRenderer.invoke('updater:install'),
   getDiscordSettings: () => ipcRenderer.invoke('discord:settings:get'),
   saveDiscordSettings: (settings) => ipcRenderer.invoke('discord:settings:set', settings),
+  getLogs: (instance) => ipcRenderer.invoke('logs:get', instance),
+  openLogsFolder: () => ipcRenderer.invoke('logs:open-folder'),
   getPersonalization: () => ipcRenderer.invoke('personalization:get'),
   savePersonalization: (settings) => ipcRenderer.invoke('personalization:set', settings),
   choosePersonalizationBackground: () => ipcRenderer.invoke('personalization:background:choose'),
@@ -40,6 +44,16 @@ contextBridge.exposeInMainWorld('launcher', {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('launcher:status', listener);
     return () => ipcRenderer.removeListener('launcher:status', listener);
+  },
+  onLogLine: (callback) => {
+    const listener = (_event, entry) => callback(entry);
+    ipcRenderer.on('logs:line', listener);
+    return () => ipcRenderer.removeListener('logs:line', listener);
+  },
+  onCrash: (callback) => {
+    const listener = (_event, crash) => callback(crash);
+    ipcRenderer.on('logs:crash', listener);
+    return () => ipcRenderer.removeListener('logs:crash', listener);
   },
   onUpdateState: (callback) => {
     const listener = (_event, state) => callback(state);

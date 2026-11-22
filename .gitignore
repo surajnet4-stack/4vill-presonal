@@ -5,3 +5,5 @@ client-mod/build/classes/
 client-mod/build/resources/
 client-mod/build/tmp/
 client-mod/build/libs/*-sources.jar
+azurehax/.gradle/
+azurehax/build/

@@ -15,7 +15,7 @@ const { isPathInside, resolveManagedPath } = require('./path-safety');
 const { ensureAzureResourcePack } = require('./azure-resource-pack');
 
 const DEFAULT_GAME_VERSION = '1.20.1';
-const AZURE_CLIENT_MOD_VERSION = '1.1.2';
+const AZURE_CLIENT_MOD_VERSION = '1.2.0';
 const MINECRAFT_MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 const FABRIC_META_URL = 'https://meta.fabricmc.net/v2';
 const FORGE_PROMOTIONS_URL = 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
@@ -77,10 +77,151 @@ const updaterState = {
 let minecraftManifestCache;
 let forgeMetadataCache;
 const loaderMetadataCache = new Map();
+const MAX_LOG_BUFFER_LINES = 6000;
+const logSession = { directory: '', filePath: '', startedAt: 0 };
+const logBuffer = [];
 
 function sendStatus(message, kind = 'info') {
+  const level = kind === 'error' ? 'error' : kind === 'warning' ? 'warn' : 'info';
+  appendLogLine(level, message);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('launcher:status', { message, kind });
+  }
+}
+
+function getLogsDirectory(paths = getDataPaths()) {
+  return path.join(paths.root, 'logs');
+}
+
+function formatLogLine(entry) {
+  const level = String(entry.level || 'info').toUpperCase().padEnd(5);
+  return `[${new Date(entry.at).toISOString()}] ${level} ${entry.text}\n`;
+}
+
+function appendLogLine(level, message) {
+  const text = String(message ?? '').replace(/\r/g, '').trimEnd();
+  if (!text) return;
+  const entry = { level, text, at: Date.now() };
+  logBuffer.push(entry);
+  if (logBuffer.length > MAX_LOG_BUFFER_LINES) {
+    logBuffer.splice(0, logBuffer.length - MAX_LOG_BUFFER_LINES);
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('logs:line', entry);
+  }
+  if (logSession.filePath) {
+    fsSync.appendFile(logSession.filePath, formatLogLine(entry), (error) => {
+      if (error) console.error(`[Azure Personal] Could not write the launcher log: ${error.message}`);
+    });
+  }
+}
+
+function pruneLogFiles(directory) {
+  try {
+    const files = fsSync.readdirSync(directory)
+      .filter((name) => /^(launcher|crash)-.*\.log$|^(launcher|crash)-.*\.txt$/.test(name))
+      .map((name) => ({ name, time: fsSync.statSync(path.join(directory, name)).mtimeMs }))
+      .sort((left, right) => right.time - left.time);
+    for (const file of files.slice(20)) {
+      fsSync.rmSync(path.join(directory, file.name), { force: true });
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.error(`[Azure Personal] Could not prune old logs: ${error.message}`);
+    }
+  }
+}
+
+function startLogSession() {
+  const directory = getLogsDirectory();
+  fsSync.mkdirSync(directory, { recursive: true });
+  pruneLogFiles(directory);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  logSession.directory = directory;
+  logSession.filePath = path.join(directory, `launcher-${stamp}.log`);
+  logSession.startedAt = Date.now();
+  logBuffer.length = 0;
+  fsSync.writeFileSync(
+    logSession.filePath,
+    `Azure Personal launcher log - ${new Date().toISOString()}\nApp version ${app.getVersion()} - Electron ${process.versions.electron} - ${process.platform} ${process.arch}\n\n`
+  );
+  appendLogLine('info', 'Launcher started.');
+}
+
+async function findLatestCrashReport(gameDirectory) {
+  if (!gameDirectory) return null;
+  const crashDirectory = path.join(gameDirectory, 'crash-reports');
+  let entries;
+  try {
+    entries = await fs.readdir(crashDirectory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  let latest = null;
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.txt')) continue;
+    const filePath = path.join(crashDirectory, entry.name);
+    try {
+      const stats = await fs.stat(filePath);
+      if (!latest || stats.mtimeMs > latest.modifiedAt) {
+        latest = { name: entry.name, path: filePath, modifiedAt: stats.mtimeMs };
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  return latest;
+}
+
+async function readGameLog(gameDirectory) {
+  if (!gameDirectory) return null;
+  const logPath = path.join(gameDirectory, 'logs', 'latest.log');
+  try {
+    const content = await fs.readFile(logPath, 'utf8');
+    return { path: logPath, content: content.slice(-400000) };
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    return null;
+  }
+}
+
+async function collectCrashInfo(gameDirectory, exitCode, startedAt) {
+  if (!gameDirectory) return null;
+  const report = await findLatestCrashReport(gameDirectory).catch(() => null);
+  const reportIsNew = Boolean(report && report.modifiedAt >= startedAt - 10000);
+  const failedExit = typeof exitCode === 'number' && exitCode !== 0;
+  if (!reportIsNew && !failedExit) return null;
+
+  let crashContent = '';
+  let copiedReportPath = '';
+  if (report) {
+    crashContent = await fs.readFile(report.path, 'utf8').catch(() => '');
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      copiedReportPath = path.join(getLogsDirectory(), `crash-${stamp}.txt`);
+      await fs.mkdir(getLogsDirectory(), { recursive: true });
+      await fs.copyFile(report.path, copiedReportPath);
+    } catch (error) {
+      console.error(`[Azure Personal] Could not copy the crash report: ${error.message}`);
+    }
+  }
+
+  const gameLog = await readGameLog(gameDirectory).catch(() => null);
+  return {
+    exitCode: typeof exitCode === 'number' ? exitCode : null,
+    report: report
+      ? { name: report.name, path: report.path, content: crashContent, copiedPath: copiedReportPath }
+      : null,
+    gameLog,
+    logsDirectory: getLogsDirectory(),
+    detectedAt: Date.now()
+  };
+}
+
+function sendLogCrash(crash) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('logs:crash', crash);
   }
 }
 
@@ -633,9 +774,80 @@ function validateInstanceReference(instance) {
       !/^\d+\.\d+(?:\.\d+)?$/.test(instance.gameVersion) ||
       !['vanilla', 'fabric', 'forge', 'optifine'].includes(instance.loaderType) ||
       typeof instance.loaderVersion !== 'string' ||
-      (instance.legacy !== undefined && typeof instance.legacy !== 'boolean')) {
+      (instance.legacy !== undefined && typeof instance.legacy !== 'boolean') ||
+      (instance.name !== undefined && typeof instance.name !== 'string')) {
     throw new Error('Select a valid Minecraft version and loader for this instance.');
   }
+}
+
+const INSTANCE_FOLDER_INDEX_FILE = 'instance-folders.json';
+
+function isSafeInstanceFolderName(name) {
+  return typeof name === 'string' && name.length > 0 && name.length <= 80 &&
+    name !== '.' && name !== '..' &&
+    !/[<>:"/\\|?*\u0000-\u001f]/.test(name) &&
+    !/[. ]$/.test(name) &&
+    !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(name);
+}
+
+function sanitizeInstanceFolderName(name) {
+  let value = typeof name === 'string' ? name.normalize('NFKC') : '';
+  value = value
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[. ]+|[. ]+$/g, '')
+    .trim();
+  if (!value) value = 'Instance';
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(value)) value = `Instance ${value}`;
+  return value.slice(0, 60).trim() || 'Instance';
+}
+
+function instanceFolderIndexPath(paths) {
+  return path.join(paths.instances, INSTANCE_FOLDER_INDEX_FILE);
+}
+
+function readInstanceFolderIndex(paths) {
+  try {
+    const parsed = JSON.parse(fsSync.readFileSync(instanceFolderIndexPath(paths), 'utf8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, folder]) => isSafeInstanceFolderName(folder))
+    );
+  } catch (error) {
+    return {};
+  }
+}
+
+async function writeInstanceFolderIndex(paths, index) {
+  await fs.mkdir(paths.instances, { recursive: true });
+  const destination = instanceFolderIndexPath(paths);
+  const temporaryPath = `${destination}.${randomUUID()}.tmp`;
+  await fs.writeFile(temporaryPath, JSON.stringify(index, null, 2), { flag: 'wx' });
+  await replaceFileAtomically(temporaryPath, destination);
+}
+
+async function allocateInstanceFolder(paths, instanceId, name) {
+  if (typeof instanceId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(instanceId)) {
+    throw new Error('Save or select a launch instance first.');
+  }
+  const index = readInstanceFolderIndex(paths);
+  if (isSafeInstanceFolderName(index[instanceId])) return index[instanceId];
+  const base = sanitizeInstanceFolderName(name);
+  const used = new Set(Object.values(index).map((folder) => folder.toLowerCase()));
+  let folder = base;
+  let counter = 2;
+  while (used.has(folder.toLowerCase()) || fsSync.existsSync(path.join(paths.instances, folder))) {
+    folder = `${base} (${counter})`;
+    counter += 1;
+    if (counter > 500) {
+      folder = `${base} ${instanceId.slice(0, 8)}`;
+      break;
+    }
+  }
+  index[instanceId] = folder;
+  await writeInstanceFolderIndex(paths, index);
+  return folder;
 }
 
 function getInstanceDirectory(paths, instance) {
@@ -646,7 +858,42 @@ function getInstanceDirectory(paths, instance) {
       .replace(/[^A-Za-z0-9._-]/g, '_');
     return path.join(paths.instances, legacyId);
   }
-  return path.join(paths.instances, instance.id);
+  const indexedFolder = readInstanceFolderIndex(paths)[instance.id];
+  return path.join(
+    paths.instances,
+    isSafeInstanceFolderName(indexedFolder) ? indexedFolder : instance.id
+  );
+}
+
+async function ensureNamedInstanceDirectory(paths, instance) {
+  if (instance.legacy === true) return getInstanceDirectory(paths, instance);
+  const index = readInstanceFolderIndex(paths);
+  if (isSafeInstanceFolderName(index[instance.id])) {
+    return path.join(paths.instances, index[instance.id]);
+  }
+  const currentDirectory = path.join(paths.instances, instance.id);
+  let hasExistingData = false;
+  try {
+    hasExistingData = (await fs.lstat(currentDirectory)).isDirectory();
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const folder = await allocateInstanceFolder(paths, instance.id, instance.name || '');
+  const targetDirectory = path.join(paths.instances, folder);
+  if (hasExistingData && targetDirectory !== currentDirectory) {
+    try {
+      await fs.rename(currentDirectory, targetDirectory);
+    } catch (error) {
+      console.error(`[Azure Personal] Could not rename instance folder: ${error.message}`);
+      const refreshed = readInstanceFolderIndex(paths);
+      if (refreshed[instance.id] === folder) {
+        delete refreshed[instance.id];
+        await writeInstanceFolderIndex(paths, refreshed).catch(() => {});
+      }
+      return currentDirectory;
+    }
+  }
+  return targetDirectory;
 }
 
 async function searchModrinth(options) {
@@ -985,6 +1232,19 @@ async function prepareModpackArchive(zip, stagingDirectory) {
   return { manifest, prepared };
 }
 
+function getModpackTitle(zip, fallbackName) {
+  let name = '';
+  try {
+    const indexEntry = zip.getEntry('modrinth.index.json');
+    const manifest = indexEntry ? JSON.parse(indexEntry.getData().toString('utf8')) : null;
+    if (manifest && typeof manifest.name === 'string') name = manifest.name.trim().slice(0, 120);
+  } catch (error) {
+    name = '';
+  }
+  if (name) return name;
+  return (typeof fallbackName === 'string' ? fallbackName.trim().slice(0, 120) : '') || 'Imported Modpack';
+}
+
 async function createModpackInstance(paths, packBytes, fallbackName, versionId = '', expectedGameVersion = '') {
   if (!Buffer.isBuffer(packBytes) || packBytes.length < 4 ||
       packBytes[0] !== 0x50 || packBytes[1] !== 0x4b) {
@@ -992,7 +1252,8 @@ async function createModpackInstance(paths, packBytes, fallbackName, versionId =
   }
   const archive = new AdmZip(packBytes);
   const instanceId = randomUUID();
-  const instanceDirectory = path.join(paths.instances, instanceId);
+  const instanceFolder = await allocateInstanceFolder(paths, instanceId, getModpackTitle(archive, fallbackName));
+  const instanceDirectory = path.join(paths.instances, instanceFolder);
   let installationComplete = false;
   await ensureSafeInstanceDirectory(instanceDirectory, instanceDirectory);
   const stagingDirectory = await fs.mkdtemp(path.join(instanceDirectory, '.4vill-install-'));
@@ -1972,12 +2233,16 @@ async function getMicrosoftProfile(accountId) {
 function skinPreviewForProfile(profile) {
   const uuid = typeof profile.id === 'string' ? profile.id.replace(/-/g, '') : '';
   if (!/^[a-f0-9]{32}$/i.test(uuid)) throw new Error('Minecraft returned an invalid player UUID.');
+  const skin = Array.isArray(profile.skins) ? profile.skins[0] : null;
   return {
     name: profile.name,
     uuid,
-    skinUrl: profile.skins && profile.skins[0] && typeof profile.skins[0].url === 'string'
-      ? profile.skins[0].url
-      : `https://crafatar.com/skins/${uuid}`
+    skinUrl: skin && typeof skin.url === 'string'
+      ? skin.url
+      : `https://crafatar.com/skins/${uuid}`,
+    variant: skin && typeof skin.variant === 'string' && skin.variant.toLowerCase() === 'slim'
+      ? 'slim'
+      : 'classic'
   };
 }
 
@@ -2123,6 +2388,15 @@ ipcMain.handle('explore:installed', (event, instance) => listInstalledContent(ev
 
 ipcMain.handle('explore:remove', (event, instance, key) => removeInstalledContent(event, instance, key));
 
+ipcMain.handle('instance:allocate-folder', async (event, instanceId, name) => {
+  assertMainWindowEvent(event, 'Instance folder');
+  if (typeof name !== 'string' || !name.trim()) {
+    throw new Error('Give this instance a name before creating its folder.');
+  }
+  const folder = await allocateInstanceFolder(getDataPaths(), instanceId, name.trim().slice(0, 120));
+  return { folder };
+});
+
 ipcMain.handle('instance:list-mods', (event, instance) => listInstanceMods(event, instance));
 
 ipcMain.handle('instance:toggle-mod', (event, instance, fileName, enabled) =>
@@ -2162,18 +2436,55 @@ ipcMain.handle('instance:open-mods', async (event, instance, folderType) => {
   }
 
   const paths = getDataPaths();
-  const legacyId = instance && instance.legacy
-    ? [instance.gameVersion, instance.loaderType, instance.loaderVersion || 'base']
-      .join('-')
-      .replace(/[^A-Za-z0-9._-]/g, '_')
-    : '';
   const folderName = folderType === 'instance' ? 'mods' : folderType === 'root' ? '' : folderType;
   const folderPath = folderType === 'shared'
     ? paths.modsSource
-    : path.join(paths.instances, instance && instance.legacy ? legacyId : instance.id, folderName);
+    : path.join(getInstanceDirectory(paths, instance), folderName);
   await fs.mkdir(folderPath, { recursive: true });
   const error = await shell.openPath(folderPath);
   if (error) throw new Error(`Could not open the mods folder: ${error}`);
+});
+
+ipcMain.handle('logs:get', async (event, instance) => {
+  assertMainWindowEvent(event, 'Logs');
+  const paths = getDataPaths();
+  let gameDirectory = '';
+  if (instance) {
+    validateInstanceReference(instance);
+    gameDirectory = getInstanceDirectory(paths, instance);
+  }
+  const gameLog = gameDirectory ? await readGameLog(gameDirectory) : null;
+  const report = gameDirectory ? await findLatestCrashReport(gameDirectory) : null;
+  const crashContent = report ? await fs.readFile(report.path, 'utf8').catch(() => '') : '';
+  const launcherLog = logBuffer.length
+    ? logBuffer.map(formatLogLine).join('')
+    : readLogFileSafe(logSession.filePath);
+  return {
+    sessionFile: logSession.filePath,
+    launcherLog,
+    gameLog,
+    crash: report
+      ? { name: report.name, path: report.path, content: crashContent }
+      : null,
+    logsDirectory: getLogsDirectory(paths)
+  };
+});
+
+function readLogFileSafe(filePath) {
+  if (!filePath) return '';
+  try {
+    return fsSync.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    return '';
+  }
+}
+
+ipcMain.handle('logs:open-folder', async (event) => {
+  assertMainWindowEvent(event, 'Logs folder');
+  const directory = getLogsDirectory();
+  await fs.mkdir(directory, { recursive: true });
+  const error = await shell.openPath(directory);
+  if (error) throw new Error(`Could not open the logs folder: ${error}`);
 });
 
 ipcMain.handle('catalog:loader-versions', async (event, gameVersion, loader) => {
@@ -2248,6 +2559,9 @@ function validateLaunchOptions(options) {
   }
   if (options.legacyInstance !== undefined && typeof options.legacyInstance !== 'boolean') {
     throw new Error('Invalid legacy instance setting.');
+  }
+  if (options.instanceName !== undefined && typeof options.instanceName !== 'string') {
+    throw new Error('Invalid instance name.');
   }
   if (options.builtInMods !== undefined && typeof options.builtInMods !== 'boolean') {
     throw new Error('Invalid built-in mods setting.');
@@ -2384,13 +2698,21 @@ async function getLaunchConfiguration(options, paths, launch) {
   ensureLaunchActive(launch);
   sendStatus(`Using Java ${java.version} for Minecraft ${options.gameVersion}.`);
 
-  const legacyId = [options.gameVersion, options.loaderType, options.loaderVersion || 'base']
-    .join('-')
-    .replace(/[^A-Za-z0-9._-]/g, '_');
-  const gameDirectory = path.join(
-    paths.instances,
-    options.legacyInstance ? legacyId : options.instanceId
-  );
+  const gameDirectory = options.legacyInstance
+    ? path.join(
+      paths.instances,
+      [options.gameVersion, options.loaderType, options.loaderVersion || 'base']
+        .join('-')
+        .replace(/[^A-Za-z0-9._-]/g, '_')
+    )
+    : await ensureNamedInstanceDirectory(paths, {
+      id: options.instanceId,
+      name: typeof options.instanceName === 'string' ? options.instanceName : '',
+      legacy: false,
+      gameVersion: options.gameVersion,
+      loaderType: options.loaderType,
+      loaderVersion: options.loaderVersion || ''
+    });
   let version = { number: options.gameVersion, type: entry.type };
   let forge;
 
@@ -2424,8 +2746,10 @@ async function getLaunchConfiguration(options, paths, launch) {
   return { java, version, forge, gameDirectory };
 }
 
-function connectLauncherEvents(launcher) {
+function connectLauncherEvents(launcher, context = {}) {
   const launch = activeLaunch;
+  const gameDirectory = context.gameDirectory || '';
+  const startedAt = context.startedAt || Date.now();
   let failureMessage;
   let recentOutput = '';
 
@@ -2453,6 +2777,7 @@ function connectLauncherEvents(launcher) {
 
   launcher.on('debug', (message) => {
     const text = String(message);
+    appendLogLine('launcher', text);
     const failurePrefix = '[MCLC]: Failed to start due to ';
     if (text.includes(failurePrefix)) {
       failureMessage = text.slice(text.indexOf(failurePrefix) + failurePrefix.length).replace(/, closing\.\.\.$/, '');
@@ -2465,6 +2790,7 @@ function connectLauncherEvents(launcher) {
   launcher.on('data', (data) => {
     const text = Buffer.isBuffer(data) ? data.toString() : String(data);
     if (!text.trim()) return;
+    appendLogLine('game', text);
     recentOutput = `${recentOutput}${text}`.slice(-12000);
     const connection = text.match(/Connecting to\s+([^\s,]+)(?:,\s*(\d+))?/i);
     if (connection) {
@@ -2482,31 +2808,41 @@ function connectLauncherEvents(launcher) {
     }
   });
 
-  launcher.on('close', (code) => {
+  launcher.on('close', async (code) => {
+    const wasStarted = gameProcessStarted;
+    clearDiscordGameActivity();
+    gameProcessStarted = false;
+    launchInProgress = false;
+    activeLaunch = null;
     if (launch.cancelled) {
       sendStatus('Launch cancelled. Minecraft was stopped.', 'cancelled');
-      clearDiscordGameActivity();
-      gameProcessStarted = false;
-      launchInProgress = false;
-      activeLaunch = null;
       return;
     }
-    if (!gameProcessStarted) {
+    if (!wasStarted) {
       const detail = recentOutput.trim().split(/\r?\n/).filter(Boolean).slice(-12).join(' | ');
       sendStatus(
         `Game process exited before startup completed (code ${code}).${detail ? ` Last output: ${detail}` : ' No game output was received.'}`,
         'error'
       );
-    } else {
-      sendStatus(
-        `Minecraft closed (exit code ${code ?? 'unknown'}). You can launch it again.`,
-        'stopped'
-      );
+      const startupCrash = await collectCrashInfo(gameDirectory, code, startedAt);
+      if (startupCrash) sendLogCrash(startupCrash);
+      return;
     }
-    clearDiscordGameActivity();
-    gameProcessStarted = false;
-    launchInProgress = false;
-    activeLaunch = null;
+
+    const crash = await collectCrashInfo(gameDirectory, code, startedAt);
+    if (crash) {
+      appendLogLine('crash', `Minecraft exited with code ${code ?? 'unknown'} and a crash report was captured.`);
+      sendLogCrash(crash);
+      sendStatus(
+        `Minecraft crashed (exit code ${code ?? 'unknown'}). The crash report is open in Logs.`,
+        'error'
+      );
+      return;
+    }
+    sendStatus(
+      `Minecraft closed (exit code ${code ?? 'unknown'}). You can launch it again.`,
+      'stopped'
+    );
   });
 
   launcher.on('error', (error) => {
@@ -2526,6 +2862,15 @@ ipcMain.handle('launcher:start', async (event, options) => {
     throw new Error('A launch is already in progress.');
   }
   validateLaunchOptions(options);
+  try {
+    startLogSession();
+    appendLogLine(
+      'info',
+      `Launch requested: Minecraft ${options.gameVersion}, ${options.loaderType}${options.loaderVersion ? ` ${options.loaderVersion}` : ''}, ${options.ram} GB RAM.`
+    );
+  } catch (error) {
+    console.error(`[Azure Personal] Could not start the launcher log: ${error.message}`);
+  }
   if (discordSettings.enabled && !discordRpcClient) {
     configureDiscordPresence().catch((error) => {
       sendDiscordState('error', `Could not connect to Discord: ${error.message}`);
@@ -2557,7 +2902,12 @@ ipcMain.handle('launcher:start', async (event, options) => {
 
     sendStatus('Starting Minecraft...');
     const launcher = new Client();
-    const getLaunchFailure = connectLauncherEvents(launcher);
+    const launchStartedAt = Date.now();
+    const getLaunchFailure = connectLauncherEvents(launcher, {
+      gameDirectory: configuration.gameDirectory,
+      startedAt: launchStartedAt
+    });
+    appendLogLine('info', `Game directory: ${configuration.gameDirectory}`);
     const launchPromise = launcher.launch({
       authorization,
       root: paths.root,
@@ -2670,6 +3020,11 @@ ipcMain.handle('launcher:stop', (event) => {
 app.whenReady().then(async () => {
   app.setName('Azure Personal');
   createWindow();
+  try {
+    startLogSession();
+  } catch (error) {
+    console.error(`[Azure Personal] Could not create the launcher log: ${error.message}`);
+  }
   try {
     await loadDiscordSettings();
     if (discordSettings.enabled) {

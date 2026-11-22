@@ -506,8 +506,10 @@
       pointer-events: none;
     }
     .avatar-stage { position: relative; width: 184px; height: 220px; perspective: 700px; pointer-events: auto; }
+    .avatar-stage::after { position: absolute; bottom: 6px; left: 50%; width: 96px; height: 18px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,.5), rgba(0,0,0,0) 70%); content: ""; filter: blur(1px); transform: translateX(-50%); }
     .avatar-pivot { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .18s ease-out; }
     .avatar-figure { position: absolute; inset: 0; transform-style: preserve-3d; animation: avatar-float 3.2s ease-in-out infinite; }
+    .avatar-figure.hide-layers .avatar-layer { display: none; }
     @keyframes avatar-float { 50% { translate: 0 -5px; } }
     .avatar-pivot.is-spinning .avatar-figure { animation: avatar-spin .65s ease-in-out; }
     @keyframes avatar-spin { to { transform: rotateY(360deg); } }
@@ -530,6 +532,9 @@
     .avatar-summary { z-index: 1; max-width: 188px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.13); border-radius: 9px; color: #fff; background: rgba(8,10,14,.62); text-align: center; pointer-events: auto; backdrop-filter: blur(7px); }
     .avatar-summary strong { display: block; max-width: 165px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
     .avatar-summary span { display: block; margin-top: 3px; color: rgba(245,243,236,.72); font-size: 8px; }
+    .avatar-layer-toggle { margin-top: 6px; padding: 3px 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: rgba(245,243,236,.82); background: rgba(255,255,255,.06); cursor: pointer; font-size: 7px; font-weight: 700; letter-spacing: .06em; }
+    .avatar-layer-toggle:hover { border-color: rgba(255,255,255,.32); color: #fff; }
+    .avatar-layer-toggle[aria-pressed="false"] { opacity: .62; }
     .avatar-interaction { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; cursor: grab; }
     .avatar-interaction:active { cursor: grabbing; }
     .player-preview-copy { min-width: 0; flex: 1; }
@@ -712,6 +717,39 @@
     .installed-row .installed-remove { color: var(--danger); }
     .empty-state { grid-column: 1 / -1; padding: 22px 12px; border: 1px dashed var(--stroke-strong); border-radius: 10px; color: var(--muted); text-align: center; font-size: 10px; line-height: 1.5; }
 
+    .log-card { grid-column: 1 / -1; }
+    .log-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .log-tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--stroke); border-radius: 9px; background: var(--bg); }
+    .log-tab { min-height: 30px; padding: 0 11px; border: 0; border-radius: 6px; color: var(--muted); background: transparent; cursor: pointer; font-size: 9px; font-weight: 600; }
+    .log-tab:hover { color: var(--text); }
+    .log-tab[aria-selected="true"] { color: var(--text); background: var(--surface-soft); }
+    .log-tab.has-crash { color: var(--danger); }
+    .log-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .log-actions .secondary-button { min-height: 30px; padding: 0 9px; font-size: 8px; }
+    .log-meta { margin: 0 0 8px !important; color: var(--subtle); font-size: 8px !important; line-height: 1.5; }
+    .log-output {
+      max-height: 440px;
+      min-height: 220px;
+      overflow: auto;
+      margin: 0;
+      padding: 12px 13px;
+      border: 1px solid var(--stroke);
+      border-radius: 9px;
+      color: color-mix(in srgb, var(--text) 88%, var(--accent));
+      background: color-mix(in srgb, var(--bg) 82%, black);
+      font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      font-size: 10px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      tab-size: 2;
+    }
+    .log-output:focus { outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+    .crash-banner { display: flex; align-items: center; gap: 9px; padding: 10px 12px; margin-bottom: 11px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--stroke)); border-radius: 9px; color: var(--text); background: color-mix(in srgb, var(--danger) 12%, var(--surface)); font-size: 9px; line-height: 1.5; }
+    .crash-banner strong { color: var(--danger); }
+    .crash-banner[hidden] { display: none; }
+    .crash-banner .secondary-button { min-height: 28px; margin-left: auto; padding: 0 9px; font-size: 8px; }
+
     .status-line {
       display: flex;
       min-height: 30px;
@@ -839,6 +877,10 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 4v5m8-5v5M7 9h10v3a5 5 0 0 1-10 0V9Zm5 8v3m-3 0h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 10v2m16-2v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           <span>MODS</span>
         </button>
+        <button class="nav-item" data-page="logs" type="button" title="Logs &amp; crashes">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 5 6 7-6 7M13 19h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>LOGS</span>
+        </button>
         <button class="nav-item" data-page="explore" type="button" title="Explore">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4m-11-9 2-4 2 4-4 2 1-2-1-2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>EXPLORE</span>
@@ -856,7 +898,7 @@
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.1 9a6.5 6.5 0 0 1 10.8-2L20 12M4 12l3.1 5a6.5 6.5 0 0 0 10.8-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span>UPDATE</span>
         </button>
-        <span class="build-label">v1.0.10</span>
+        <span class="build-label">v1.0.11</span>
       </nav>
 
       <main class="content">
@@ -892,6 +934,7 @@
                 <div class="avatar-summary">
                   <strong id="player-name">Local profile</strong>
                   <span id="player-skin-status">Choose a skin in Profiles.</span>
+                  <button class="avatar-layer-toggle" id="avatar-layer-toggle" type="button" aria-pressed="true">LAYERS ON</button>
                 </div>
               </div>
               <div class="hero-actions">
@@ -1250,6 +1293,39 @@
           </div>
         </section>
 
+        <section class="page" id="page-logs" aria-labelledby="logs-title">
+          <div class="page-heading">
+            <div><p class="overline">Diagnostics</p><h1 id="logs-title">Logs &amp; crashes</h1></div>
+            <button class="secondary-button back-button" id="logs-refresh-button" type="button">Refresh logs</button>
+          </div>
+          <div class="crash-banner" id="crash-banner" hidden>
+            <span aria-hidden="true">⚠</span>
+            <span><strong>Minecraft crashed.</strong> <span id="crash-banner-text">A crash report was captured.</span></span>
+            <button class="secondary-button" id="crash-banner-button" type="button">View crash report</button>
+          </div>
+          <div class="settings-layout">
+            <section class="settings-card log-card" aria-labelledby="log-viewer-heading">
+              <h2 id="log-viewer-heading">Launcher &amp; game output</h2>
+              <p>Live launcher output, the latest Minecraft log for this instance, and the newest crash report. Logs are saved on this device so you can share them after a crash.</p>
+              <div class="log-toolbar">
+                <div class="log-tabs" role="tablist" aria-label="Log type">
+                  <button class="log-tab" id="log-tab-launcher" role="tab" aria-selected="true" type="button">Launcher output</button>
+                  <button class="log-tab" id="log-tab-game" role="tab" aria-selected="false" type="button">Game log</button>
+                  <button class="log-tab" id="log-tab-crash" role="tab" aria-selected="false" type="button">Crash report</button>
+                </div>
+                <div class="log-actions">
+                  <button class="secondary-button" id="log-copy-button" type="button">Copy</button>
+                  <button class="secondary-button" id="log-save-button" type="button">Save as…</button>
+                  <button class="secondary-button" id="log-open-folder-button" type="button">Open logs folder</button>
+                  <button class="secondary-button" id="log-open-instance-button" type="button">Open instance folder</button>
+                </div>
+              </div>
+              <p class="log-meta" id="log-meta" role="status" aria-live="polite">Launcher output appears here while Minecraft prepares and runs.</p>
+              <pre class="log-output" id="log-output" tabindex="0">No launcher output yet. Launch Minecraft to capture logs.</pre>
+            </section>
+          </div>
+        </section>
+
         <section class="page" id="page-settings" aria-labelledby="settings-title">
           <div class="page-heading">
             <div><p class="overline">Make it yours</p><h1 id="settings-title">Settings</h1></div>
@@ -1258,7 +1334,7 @@
           <div class="settings-layout">
             <section class="settings-card">
               <h2>Azure Personal</h2>
-              <p>A focused Minecraft launcher with versioned instances, automatic compatible Fabric/Forge performance mods, Modrinth discovery, account skins, and saved themes.</p>
+              <p>A focused Minecraft launcher with versioned instances, automatic compatible Fabric/Forge performance mods, Modrinth discovery, account skins, saved themes, and built-in logs.</p>
               <div class="quick-row"><span>Content provider</span><strong>Modrinth</strong></div>
               <div class="quick-row"><span>CurseForge</span><strong>Not available inside</strong></div>
             </section>
@@ -1273,12 +1349,13 @@
               </div>
             </section>
             <section class="settings-card changelog-card" aria-labelledby="changelog-heading">
-              <h2 id="changelog-heading">What’s new · v1.0.10</h2>
+              <h2 id="changelog-heading">What’s new · v1.0.11</h2>
               <ul class="changelog-list">
-                <li>Fixed launcher status and controls getting stuck after Minecraft closes outside the launcher.</li>
-                <li>Added a Fabric client build for Minecraft 1.21.11 with a configurable Azure menu key.</li>
-                <li>Updated the Azure client mod to 1.1.2 across the supported game versions.</li>
-                <li>Kept the existing 1.20.1–1.20.4 Azure client features and launcher profiles intact.</li>
+                <li>New Azure client menu for Minecraft 1.20.x and 1.21.x: module cards, search, categories, themes, presets, and account shortcuts.</li>
+                <li>Fixed the Minecraft 1.21.11 client menu crash when opening it with Right Shift.</li>
+                <li>Added Health, Hunger &amp; Saturation, Server Info, World Time, Day Counter, and FPS Graph HUD modules.</li>
+                <li>Added launcher and game logs with automatic crash-report capture, plus readable instance folder names.</li>
+                <li>Updated the Azure client mod to 1.2.0.</li>
               </ul>
             </section>
             <section class="settings-card personalization-card" aria-labelledby="personalization-heading">
@@ -1433,6 +1510,21 @@
     const playstyleStatus = document.getElementById('playstyle-status');
     const statusLine = document.getElementById('status');
     const statusText = document.getElementById('status-text');
+    const logOutput = document.getElementById('log-output');
+    const logMeta = document.getElementById('log-meta');
+    const logTabs = [...document.querySelectorAll('.log-tab')];
+    const logsRefreshButton = document.getElementById('logs-refresh-button');
+    const logCopyButton = document.getElementById('log-copy-button');
+    const logSaveButton = document.getElementById('log-save-button');
+    const logOpenFolderButton = document.getElementById('log-open-folder-button');
+    const logOpenInstanceButton = document.getElementById('log-open-instance-button');
+    const crashBanner = document.getElementById('crash-banner');
+    const crashBannerText = document.getElementById('crash-banner-text');
+    const crashBannerButton = document.getElementById('crash-banner-button');
+    let logView = 'launcher';
+    let logRefreshSequence = 0;
+    let logRenderPending = false;
+    let logsState = { launcherLog: '', gameLog: null, crash: null };
     const updateStatus = document.getElementById('update-status');
     const checkUpdatesButton = document.getElementById('check-updates-button');
     const downloadUpdateButton = document.getElementById('download-update-button');
@@ -1596,6 +1688,7 @@
         refreshInstanceMods();
         runExploreSearch();
       }
+      if (item.dataset.page === 'logs') refreshLogs();
     }));
     document.getElementById('account-shortcut').addEventListener('click', () => navigate('profiles'));
     document.getElementById('profile-shortcut').addEventListener('click', () => navigate('profiles'));
@@ -1698,6 +1791,7 @@
         if (requestId !== skinRequestSequence) return;
         playerName.textContent = preview.name || 'Local profile';
         sessionProfileName.textContent = preview.name || 'Local profile';
+        avatarVariant = preview.variant === 'slim' ? 'slim' : 'classic';
         if (!preview.skinUrl) {
           playerSkinStatus.textContent = current.authMode === 'microsoft'
             ? 'No skin is set on this Minecraft profile.'
@@ -1756,6 +1850,38 @@
       right: [16, 52, 4, 12], left: [24, 52, 4, 12],
       top: [20, 48, 4, 4], bottom: [24, 48, 4, 4]
     };
+    const headHatFaces = {
+      front: [40, 8, 8, 8], back: [56, 8, 8, 8],
+      right: [32, 8, 8, 8], left: [48, 8, 8, 8],
+      top: [40, 0, 8, 8], bottom: [48, 0, 8, 8]
+    };
+    const jacketFaces = {
+      front: [20, 36, 8, 12], back: [32, 36, 8, 12],
+      right: [16, 36, 4, 12], left: [28, 36, 4, 12],
+      top: [20, 32, 8, 4], bottom: [28, 32, 8, 4]
+    };
+    const rightSleeveFaces = {
+      front: [44, 36, 4, 12], back: [52, 36, 4, 12],
+      right: [40, 36, 4, 12], left: [48, 36, 4, 12],
+      top: [44, 32, 4, 4], bottom: [48, 32, 4, 4]
+    };
+    const leftSleeveFaces = {
+      front: [52, 52, 4, 12], back: [60, 52, 4, 12],
+      right: [48, 52, 4, 12], left: [56, 52, 4, 12],
+      top: [52, 48, 4, 4], bottom: [56, 48, 4, 4]
+    };
+    const rightPantsFaces = {
+      front: [4, 36, 4, 12], back: [12, 36, 4, 12],
+      right: [0, 36, 4, 12], left: [8, 36, 4, 12],
+      top: [4, 32, 4, 4], bottom: [8, 32, 4, 4]
+    };
+    const leftPantsFaces = {
+      front: [4, 52, 4, 12], back: [12, 52, 4, 12],
+      right: [0, 52, 4, 12], left: [8, 52, 4, 12],
+      top: [4, 48, 4, 4], bottom: [8, 48, 4, 4]
+    };
+    let avatarVariant = 'classic';
+    let showAvatarLayers = true;
 
     function addAvatarCuboid(geometry, faceMap, imageUrl, color, options = {}) {
       const { width, height, depth, x = 0, top = 0, hanging = false, className = '', expansion = 0 } = geometry;
@@ -1797,9 +1923,14 @@
       playerAvatarFigure.replaceChildren();
       const imageUrl = skinImage ? skinImage.src : '';
       const modernSkin = skinImage && skinImage.naturalWidth >= 64 && skinImage.naturalHeight >= 64;
+      const slim = avatarVariant === 'slim';
+      const armWidth = slim ? 3 : 4;
+      const armOffset = (8 + armWidth) / 2 + 0.2;
       const colors = {
         head: '#c99a6d', body: '#3975d5', arms: '#c99a6d', legs: '#273c5b'
       };
+      const armLeftFaces = modernSkin ? leftArmFaces : rightArmFaces;
+      const legLeftFaces = modernSkin ? leftLegFaces : rightLegFaces;
       addAvatarCuboid(
         { width: 8, height: 8, depth: 8, top: 4 },
         headFaces, imageUrl, colors.head, { className: 'head' }
@@ -1809,43 +1940,55 @@
         bodyFaces, imageUrl, colors.body, { className: 'body' }
       );
       addAvatarCuboid(
-        { width: 4, height: 12, depth: 4, x: -6.2, top: 8, hanging: true },
-        modernSkin ? leftArmFaces : rightArmFaces, imageUrl, colors.arms,
-        { className: 'arm arm-left' }
+        { width: armWidth, height: 12, depth: 4, x: -armOffset, top: 8, hanging: true },
+        armLeftFaces, imageUrl, colors.arms, { className: 'arm arm-left' }
       );
       addAvatarCuboid(
-        { width: 4, height: 12, depth: 4, x: 6.2, top: 8, hanging: true },
+        { width: armWidth, height: 12, depth: 4, x: armOffset, top: 8, hanging: true },
         rightArmFaces, imageUrl, colors.arms, { className: 'arm arm-right' }
       );
       addAvatarCuboid(
         { width: 4, height: 12, depth: 4, x: -2, top: 20, hanging: true },
-        modernSkin ? leftLegFaces : rightLegFaces, imageUrl, colors.legs,
-        { className: 'leg leg-left' }
+        legLeftFaces, imageUrl, colors.legs, { className: 'leg leg-left' }
       );
       addAvatarCuboid(
         { width: 4, height: 12, depth: 4, x: 2, top: 20, hanging: true },
         rightLegFaces, imageUrl, colors.legs, { className: 'leg leg-right' }
       );
-      if (modernSkin) {
-        const headHatFaces = {
-          front: [40, 8, 8, 8], back: [56, 8, 8, 8],
-          right: [32, 8, 8, 8], left: [48, 8, 8, 8],
-          top: [40, 0, 8, 8], bottom: [48, 0, 8, 8]
-        };
-        const jacketFaces = {
-          front: [20, 36, 8, 12], back: [32, 36, 8, 12],
-          right: [16, 36, 4, 12], left: [28, 36, 4, 12],
-          top: [20, 32, 8, 4], bottom: [28, 32, 8, 4]
-        };
-        addAvatarCuboid(
-          { width: 8, height: 8, depth: 8, top: 4 }, headHatFaces, imageUrl, colors.head,
-          { className: 'head-layer', expansion: 0.35 }
-        );
-        addAvatarCuboid(
-          { width: 8, height: 12, depth: 4, top: 14 }, jacketFaces, imageUrl, colors.body,
-          { className: 'body-layer', expansion: 0.3 }
-        );
+      if (!modernSkin) {
+        playerAvatarFigure.classList.remove('has-layers');
+        return;
       }
+      // Second skin layer: hat, jacket, sleeves, and pant overlays.
+      addAvatarCuboid(
+        { width: 8, height: 8, depth: 8, top: 4 }, headHatFaces, imageUrl, 'transparent',
+        { className: 'head head-layer avatar-layer', expansion: 0.35 }
+      );
+      addAvatarCuboid(
+        { width: 8, height: 12, depth: 4, top: 14 }, jacketFaces, imageUrl, 'transparent',
+        { className: 'body body-layer avatar-layer', expansion: 0.3 }
+      );
+      addAvatarCuboid(
+        { width: armWidth, height: 12, depth: 4, x: -armOffset, top: 8, hanging: true },
+        leftSleeveFaces, imageUrl, 'transparent',
+        { className: 'arm arm-left sleeve-layer avatar-layer', expansion: 0.26 }
+      );
+      addAvatarCuboid(
+        { width: armWidth, height: 12, depth: 4, x: armOffset, top: 8, hanging: true },
+        rightSleeveFaces, imageUrl, 'transparent',
+        { className: 'arm arm-right sleeve-layer avatar-layer', expansion: 0.26 }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: -2, top: 20, hanging: true },
+        leftPantsFaces, imageUrl, 'transparent',
+        { className: 'leg leg-left pants-layer avatar-layer', expansion: 0.26 }
+      );
+      addAvatarCuboid(
+        { width: 4, height: 12, depth: 4, x: 2, top: 20, hanging: true },
+        rightPantsFaces, imageUrl, 'transparent',
+        { className: 'leg leg-right pants-layer avatar-layer', expansion: 0.26 }
+      );
+      playerAvatarFigure.classList.add('has-layers');
     }
 
     let avatarYaw = 0;
@@ -1884,6 +2027,13 @@
         avatarPitch = Math.max(-28, Math.min(28, avatarPitch));
         updateAvatarRotation();
       }
+    });
+    const avatarLayerToggle = document.getElementById('avatar-layer-toggle');
+    avatarLayerToggle.addEventListener('click', () => {
+      showAvatarLayers = !showAvatarLayers;
+      avatarLayerToggle.setAttribute('aria-pressed', String(showAvatarLayers));
+      avatarLayerToggle.textContent = showAvatarLayers ? 'LAYERS ON' : 'LAYERS OFF';
+      playerAvatarFigure.classList.toggle('hide-layers', !showAvatarLayers);
     });
 
     function selectAuthMode(mode, persist = true) {
@@ -2408,9 +2558,17 @@
       syncCurrentFromControls();
       const name = profileNameInput.value.trim() ||
         `${current.username || selectedAccount()?.name || 'Minecraft'} ${newInstanceGameVersionSelect.value}`;
+      const instanceId = crypto.randomUUID();
+      if (window.launcher) {
+        try {
+          await window.launcher.allocateInstanceFolder(instanceId, name);
+        } catch (error) {
+          // The launch flow allocates the folder again if this fails.
+        }
+      }
       const profile = {
         id: crypto.randomUUID(),
-        instanceId: crypto.randomUUID(),
+        instanceId,
         legacyInstance: false,
         name,
         authMode: current.authMode,
@@ -2443,6 +2601,7 @@
       try {
         await window.launcher.openModsFolder({
           id: current.instanceId,
+          name: profileNameInput.value.trim() || current.name || '',
           legacy: current.legacyInstance === true,
           gameVersion: gameVersionSelect.value,
           loaderType: loaderTypeSelect.value,
@@ -2466,6 +2625,7 @@
       current.loaderVersion = loaderVersionSelect.value || '';
       return {
         id: current.instanceId,
+        name: profileNameInput.value.trim() || current.name || '',
         legacy: current.legacyInstance === true,
         gameVersion: current.gameVersion,
         loaderType: current.loaderType,
@@ -3255,6 +3415,142 @@
       cancelLaunchButton.textContent = 'STOP DOWNLOAD';
     }
 
+    function formatLogEntry(entry) {
+      const time = new Date(Number(entry.at) || Date.now()).toISOString();
+      const level = String(entry.level || 'info').toUpperCase().padEnd(5);
+      return `[${time}] ${level} ${String(entry.text || '').replace(/\r/g, '')}\n`;
+    }
+
+    function currentLogText() {
+      if (logView === 'game') {
+        return logsState.gameLog && logsState.gameLog.content
+          ? logsState.gameLog.content
+          : 'No Minecraft log was found for this instance yet. Launch the game once to create logs/latest.log.';
+      }
+      if (logView === 'crash') {
+        return logsState.crash && logsState.crash.content
+          ? logsState.crash.content
+          : 'No crash report was found for this instance. If Minecraft crashed, its crash-reports folder will be included after the next launch.';
+      }
+      return logsState.launcherLog || 'No launcher output yet. Launch Minecraft to capture logs.';
+    }
+
+    function renderLogView() {
+      logRenderPending = false;
+      const nearBottom = logOutput.scrollTop + logOutput.clientHeight >= logOutput.scrollHeight - 40;
+      logOutput.textContent = currentLogText();
+      if (nearBottom) logOutput.scrollTop = logOutput.scrollHeight;
+      for (const tab of logTabs) {
+        tab.setAttribute('aria-selected', String(tab.id === `log-tab-${logView}`));
+      }
+      const crashTab = document.getElementById('log-tab-crash');
+      crashTab.classList.toggle('has-crash', Boolean(logsState.crash));
+      if (logView === 'crash' && logsState.crash) {
+        logMeta.textContent = `${logsState.crash.name} · ${logsState.crash.path}`;
+      } else if (logView === 'game' && logsState.gameLog) {
+        logMeta.textContent = `Minecraft log · ${logsState.gameLog.path}`;
+      } else if (logView === 'launcher') {
+        logMeta.textContent = 'Live launcher output from this session. Saved copies are kept in the logs folder.';
+      }
+    }
+
+    function scheduleLogRender() {
+      if (logRenderPending) return;
+      logRenderPending = true;
+      requestAnimationFrame(renderLogView);
+    }
+
+    function showCrashBanner(crash) {
+      if (!crash) return;
+      crashBanner.hidden = false;
+      const report = crash.report;
+      crashBannerText.textContent = report
+        ? `${report.name} was captured${Number.isInteger(crash.exitCode) ? ` after exit code ${crash.exitCode}` : ''}.`
+        : `Minecraft exited unexpectedly${Number.isInteger(crash.exitCode) ? ` with code ${crash.exitCode}` : ''}. The end of the game log may explain why.`;
+    }
+
+    async function refreshLogs() {
+      if (!window.launcher) {
+        logMeta.textContent = 'Logs are available in the desktop launcher.';
+        return;
+      }
+      const requestId = ++logRefreshSequence;
+      logsRefreshButton.disabled = true;
+      try {
+        const result = await window.launcher.getLogs(currentInstanceReference());
+        if (requestId !== logRefreshSequence) return;
+        logsState = {
+          launcherLog: typeof result.launcherLog === 'string' ? result.launcherLog : logsState.launcherLog,
+          gameLog: result.gameLog || null,
+          crash: result.crash || null
+        };
+        renderLogView();
+      } catch (error) {
+        if (requestId !== logRefreshSequence) return;
+        logMeta.textContent = error.message || 'Could not load the logs.';
+      } finally {
+        if (requestId === logRefreshSequence) logsRefreshButton.disabled = false;
+      }
+    }
+
+    for (const tab of logTabs) {
+      tab.addEventListener('click', () => {
+        logView = tab.id.slice('log-tab-'.length);
+        renderLogView();
+      });
+    }
+
+    logsRefreshButton.addEventListener('click', refreshLogs);
+
+    logCopyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(logOutput.textContent || '');
+        logMeta.textContent = 'Copied the visible log to the clipboard.';
+      } catch (error) {
+        logMeta.textContent = 'Could not copy the log. Select the text and copy it manually.';
+      }
+    });
+
+    logSaveButton.addEventListener('click', () => {
+      const suffix = logView === 'crash' && logsState.crash
+        ? logsState.crash.name.replace(/\.txt$/i, '')
+        : logView === 'game' ? 'minecraft-latest' : 'launcher';
+      const blob = new Blob([logOutput.textContent || ''], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `azure-${suffix}-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      logMeta.textContent = 'Log saved to your downloads folder.';
+    });
+
+    logOpenFolderButton.addEventListener('click', async () => {
+      if (!window.launcher) return;
+      try {
+        await window.launcher.openLogsFolder();
+      } catch (error) {
+        logMeta.textContent = error.message || 'Could not open the logs folder.';
+      }
+    });
+
+    logOpenInstanceButton.addEventListener('click', async () => {
+      if (!window.launcher) return;
+      try {
+        await window.launcher.openModsFolder(currentInstanceReference(), 'root');
+      } catch (error) {
+        logMeta.textContent = error.message || 'Could not open the instance folder.';
+      }
+    });
+
+    crashBannerButton.addEventListener('click', () => {
+      logView = 'crash';
+      renderLogView();
+      logOutput.scrollIntoView({ block: 'nearest' });
+    });
+
     function renderUpdateState(state) {
       if (!state || typeof state.message !== 'string') return;
       updateStatus.textContent = state.message;
@@ -3343,6 +3639,25 @@
       });
       window.launcher.onUpdateState(renderUpdateState);
       window.launcher.onDiscordState(renderDiscordState);
+      window.launcher.onLogLine((entry) => {
+        if (!entry || typeof entry.text !== 'string') return;
+        logsState.launcherLog += formatLogEntry(entry);
+        if (logsState.launcherLog.length > 500000) {
+          logsState.launcherLog = logsState.launcherLog.slice(-400000);
+        }
+        if (logView === 'launcher') scheduleLogRender();
+      });
+      window.launcher.onCrash((crash) => {
+        if (!crash) return;
+        logsState.crash = crash.report
+          ? { name: crash.report.name, path: crash.report.path, content: crash.report.content }
+          : null;
+        if (crash.gameLog) logsState.gameLog = crash.gameLog;
+        showCrashBanner(crash);
+        logView = 'crash';
+        renderLogView();
+        navigate('logs');
+      });
       window.launcher.getPersonalization().then(applyPersonalization).catch((error) => {
         showPersonalizationStatus(error.message || 'Could not load launcher personalization.', 'error');
       });
@@ -3397,6 +3712,7 @@
           username: current.username,
           accountId: selectedAccountId,
           instanceId: current.instanceId,
+          instanceName: current.name || '',
           legacyInstance: current.legacyInstance === true,
           builtInMods: current.builtInMods !== false,
           gameVersion: gameVersionSelect.value,

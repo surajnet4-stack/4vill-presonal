@@ -20,6 +20,7 @@ import java.util.Locale;
 public final class AzureHud {
     private static final SimpleDateFormat TIME_FORMAT_24 = new SimpleDateFormat("HH:mm:ss", Locale.ROOT);
     private static final SimpleDateFormat TIME_FORMAT_12 = new SimpleDateFormat("hh:mm:ss a", Locale.ROOT);
+    private static final java.util.ArrayDeque<Integer> FPS_SAMPLES = new java.util.ArrayDeque<>();
 
     private AzureHud() {
     }
@@ -176,13 +177,90 @@ public final class AzureHud {
             context.getMatrices().pop();
         }
 
-        // 15. Block Overlay
+        // 15. Health, hunger, server, time and day modules
+        if (config.showHealth) {
+            float absorption = player.getAbsorptionAmount();
+            String healthText = String.format(Locale.ROOT, "HEALTH %.1f%s", player.getHealth(),
+                absorption > 0 ? "  +" + (int) absorption : "");
+            int color = config.chromaHud ? AzureClient.getChromaColor(900)
+                : (player.getHealth() <= 6 ? 0xffff4757 : config.healthColor);
+            int x = config.healthX < 0 ? screenWidth - 118 : clampX(config.healthX, screenWidth, 100, config.healthScale);
+            int y = config.healthY < 0 ? 132 : clampY(config.healthY, screenHeight, 20, config.healthScale);
+            context.getMatrices().push();
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(config.healthScale, config.healthScale, 1);
+            drawChip(context, client, healthText, color, config.hudOpacity);
+            context.getMatrices().pop();
+        }
+
+        if (config.showHunger) {
+            String hungerText = String.format(Locale.ROOT, "HUNGER %d  |  SAT %.1f",
+                player.getHungerManager().getFoodLevel(), player.getHungerManager().getSaturationLevel());
+            int color = config.chromaHud ? AzureClient.getChromaColor(1000) : config.hungerColor;
+            int x = config.hungerX < 0 ? screenWidth - 150 : clampX(config.hungerX, screenWidth, 135, config.hungerScale);
+            int y = config.hungerY < 0 ? 152 : clampY(config.hungerY, screenHeight, 20, config.hungerScale);
+            context.getMatrices().push();
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(config.hungerScale, config.hungerScale, 1);
+            drawChip(context, client, hungerText, color, config.hudOpacity);
+            context.getMatrices().pop();
+        }
+
+        if (config.showServerInfo) {
+            String server = client.getCurrentServerEntry() != null
+                ? client.getCurrentServerEntry().address
+                : "SINGLEPLAYER";
+            if (server.length() > 34) server = server.substring(0, 33) + "...";
+            String serverText = "SERVER  " + server;
+            int color = config.chromaHud ? AzureClient.getChromaColor(1100) : config.serverColor;
+            int x = clampX(config.serverX, screenWidth, client.textRenderer.getWidth(serverText) + 16, config.serverScale);
+            int y = clampY(config.serverY, screenHeight, 20, config.serverScale);
+            context.getMatrices().push();
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(config.serverScale, config.serverScale, 1);
+            drawChip(context, client, serverText, color, config.hudOpacity);
+            context.getMatrices().pop();
+        }
+
+        if (config.showWorldTime && client.world != null) {
+            long time = client.world.getTimeOfDay() % 24000L;
+            int hour = (int) ((time / 1000L + 6L) % 24L);
+            int minute = (int) ((time % 1000L) * 60L / 1000L);
+            String timeText = String.format(Locale.ROOT, "TIME  %02d:%02d", hour, minute);
+            int color = config.chromaHud ? AzureClient.getChromaColor(1200) : config.worldTimeColor;
+            int x = clampX(config.worldTimeX, screenWidth, 90, config.worldTimeScale);
+            int y = clampY(config.worldTimeY, screenHeight, 20, config.worldTimeScale);
+            context.getMatrices().push();
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(config.worldTimeScale, config.worldTimeScale, 1);
+            drawChip(context, client, timeText, color, config.hudOpacity);
+            context.getMatrices().pop();
+        }
+
+        if (config.showDayCounter && client.world != null) {
+            long day = client.world.getTimeOfDay() / 24000L + 1L;
+            String dayText = "DAY  " + day;
+            int color = config.chromaHud ? AzureClient.getChromaColor(1300) : config.dayColor;
+            int x = clampX(config.dayX, screenWidth, 70, config.dayScale);
+            int y = clampY(config.dayY, screenHeight, 20, config.dayScale);
+            context.getMatrices().push();
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(config.dayScale, config.dayScale, 1);
+            drawChip(context, client, dayText, color, config.hudOpacity);
+            context.getMatrices().pop();
+        }
+
+        if (config.showFpsGraph) {
+            renderFpsGraph(context, client, config, accent, screenWidth);
+        }
+
+        // 16. Block Overlay
         if (config.showBlockOverlay && client.crosshairTarget instanceof BlockHitResult hit &&
             hit.getType() == HitResult.Type.BLOCK) {
             renderBlockOverlay(context, client, config, hit.getBlockPos(), screenWidth, screenHeight);
         }
 
-        // 16. Toggle Sprint & FreeLook Badges
+        // 17. Toggle Sprint & FreeLook Badges
         int badgeY = screenHeight - 24;
         if (config.showToggleSprintBadge && AzureClient.isSprintToggled()) {
             drawChip(context, client, "[Sprinting (Toggled)]", accent, config.hudOpacity, 10, badgeY);
@@ -195,6 +273,38 @@ public final class AzureHud {
         if (AzureClient.isFreeLookActive()) {
             drawChip(context, client, "FREE LOOK (V)", 0xff49d8ce, config.hudOpacity, screenWidth - 100, 54);
         }
+    }
+
+    private static void renderFpsGraph(DrawContext context, MinecraftClient client, AzureConfig config,
+                                       int accent, int screenWidth) {
+        int fps = client.getCurrentFps();
+        FPS_SAMPLES.addLast(fps);
+        while (FPS_SAMPLES.size() > 60) FPS_SAMPLES.removeFirst();
+
+        int graphWidth = 76;
+        int graphHeight = 22;
+        int x = config.fpsGraphX < 0 ? screenWidth - graphWidth - 10
+            : clampX(config.fpsGraphX, screenWidth, graphWidth, config.fpsGraphScale);
+        int y = config.fpsGraphY < 0 ? 10 : clampY(config.fpsGraphY, 60, graphHeight, config.fpsGraphScale);
+
+        context.getMatrices().push();
+        context.getMatrices().translate(x, y, 0);
+        context.getMatrices().scale(config.fpsGraphScale, config.fpsGraphScale, 1);
+        context.fill(0, 0, graphWidth, graphHeight, withOpacity(0xff0b1017, config.hudOpacity));
+        drawBorder(context, 0, 0, graphWidth, graphHeight, 0x442c3d52);
+
+        int index = 0;
+        int barCount = FPS_SAMPLES.size();
+        for (int sample : FPS_SAMPLES) {
+            int barHeight = Math.max(1, Math.min(graphHeight - 4, sample * (graphHeight - 4) / 240));
+            int barX = graphWidth - 2 - (barCount - index);
+            if (barX < 2) break;
+            context.fill(barX, graphHeight - 2 - barHeight, barX + 1, graphHeight - 2,
+                sample < 30 ? 0xffff4757 : accent);
+            index++;
+        }
+        context.drawTextWithShadow(client.textRenderer, fps + " FPS", 3, 2, 0xfff0f4fa);
+        context.getMatrices().pop();
     }
 
     // --- Watermark Renderer ---

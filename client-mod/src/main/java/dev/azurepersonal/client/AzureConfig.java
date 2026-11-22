@@ -127,6 +127,42 @@ public final class AzureConfig {
     public float memoryScale = 1.0f;
     public int memoryColor = 0xffaab8cb;
 
+    // New utility HUD modules
+    public boolean showHealth = false;
+    public int healthX = -1;
+    public int healthY = -1;
+    public float healthScale = 1.0f;
+    public int healthColor = 0xffff7f9f;
+
+    public boolean showHunger = false;
+    public int hungerX = -1;
+    public int hungerY = -1;
+    public float hungerScale = 1.0f;
+    public int hungerColor = 0xffffca78;
+
+    public boolean showServerInfo = true;
+    public int serverX = 10;
+    public int serverY = 154;
+    public float serverScale = 1.0f;
+    public int serverColor = 0xff8ab4ff;
+
+    public boolean showWorldTime = false;
+    public int worldTimeX = 10;
+    public int worldTimeY = 172;
+    public float worldTimeScale = 1.0f;
+    public int worldTimeColor = 0xff80e0a0;
+
+    public boolean showDayCounter = false;
+    public int dayX = 10;
+    public int dayY = 190;
+    public float dayScale = 1.0f;
+    public int dayColor = 0xffc6a0ff;
+
+    public boolean showFpsGraph = false;
+    public int fpsGraphX = -1;
+    public int fpsGraphY = 130;
+    public float fpsGraphScale = 1.0f;
+
     // Movement & Keys
     public boolean toggleSprint;
     public boolean toggleSneak;
@@ -199,6 +235,12 @@ public final class AzureConfig {
                     loaded.reachScale = clampScale(loaded.reachScale);
                     loaded.clockScale = clampScale(loaded.clockScale);
                     loaded.memoryScale = clampScale(loaded.memoryScale);
+                    loaded.healthScale = clampScale(loaded.healthScale);
+                    loaded.hungerScale = clampScale(loaded.hungerScale);
+                    loaded.serverScale = clampScale(loaded.serverScale);
+                    loaded.worldTimeScale = clampScale(loaded.worldTimeScale);
+                    loaded.dayScale = clampScale(loaded.dayScale);
+                    loaded.fpsGraphScale = clampScale(loaded.fpsGraphScale);
                     return loaded;
                 }
             }
@@ -267,6 +309,12 @@ public final class AzureConfig {
                 showSpeedometer = false;
                 showClock = false;
                 showMemory = false;
+                showHealth = true;
+                showHunger = true;
+                showServerInfo = true;
+                showWorldTime = false;
+                showDayCounter = false;
+                showFpsGraph = false;
                 lowFire = true;
                 noHurtCam = true;
                 toggleSprint = true;
@@ -310,6 +358,11 @@ public final class AzureConfig {
                 showPotions = true;
                 showClock = true;
                 showBlockOverlay = true;
+                showServerInfo = true;
+                showWorldTime = true;
+                showDayCounter = true;
+                showHealth = true;
+                showHunger = true;
                 fullBright = true;
             }
             case "minimal" -> {
