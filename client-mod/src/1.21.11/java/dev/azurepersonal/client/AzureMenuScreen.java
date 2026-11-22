@@ -58,6 +58,13 @@ public final class AzureMenuScreen extends Screen {
                 case "worldtime" -> cfg.showWorldTime;
                 case "day" -> cfg.showDayCounter;
                 case "memory" -> cfg.showMemory;
+                case "keystrokes" -> cfg.showKeystrokes;
+                case "cps" -> cfg.showCps;
+                case "armor" -> cfg.showArmor;
+                case "potions" -> cfg.showPotions;
+                case "speed" -> cfg.showSpeed;
+                case "clock" -> cfg.showClock;
+                case "blockinfo" -> cfg.showBlockInfo;
                 default -> false;
             };
         }
@@ -76,6 +83,13 @@ public final class AzureMenuScreen extends Screen {
                 case "worldtime" -> cfg.showWorldTime = !cfg.showWorldTime;
                 case "day" -> cfg.showDayCounter = !cfg.showDayCounter;
                 case "memory" -> cfg.showMemory = !cfg.showMemory;
+                case "keystrokes" -> cfg.showKeystrokes = !cfg.showKeystrokes;
+                case "cps" -> cfg.showCps = !cfg.showCps;
+                case "armor" -> cfg.showArmor = !cfg.showArmor;
+                case "potions" -> cfg.showPotions = !cfg.showPotions;
+                case "speed" -> cfg.showSpeed = !cfg.showSpeed;
+                case "clock" -> cfg.showClock = !cfg.showClock;
+                case "blockinfo" -> cfg.showBlockInfo = !cfg.showBlockInfo;
                 default -> {
                 }
             }
@@ -97,6 +111,13 @@ public final class AzureMenuScreen extends Screen {
         MODS.add(new ModEntry("worldtime", "World Time", "In-game clock", Tab.UTILITY));
         MODS.add(new ModEntry("day", "Day Counter", "Current world day", Tab.UTILITY));
         MODS.add(new ModEntry("memory", "Memory / RAM", "JVM heap usage", Tab.UTILITY));
+        MODS.add(new ModEntry("keystrokes", "Keystrokes", "WASD, mouse, and jump keys", Tab.HUD));
+        MODS.add(new ModEntry("cps", "CPS Counter", "Left and right clicks per second", Tab.HUD));
+        MODS.add(new ModEntry("armor", "Armor Status", "Equipped armor durability", Tab.HUD));
+        MODS.add(new ModEntry("potions", "Potion Effects", "Active effect timers", Tab.HUD));
+        MODS.add(new ModEntry("speed", "Speedometer", "Horizontal movement speed", Tab.UTILITY));
+        MODS.add(new ModEntry("clock", "Clock", "Real-world time", Tab.UTILITY));
+        MODS.add(new ModEntry("blockinfo", "Block Info", "Target block name and position", Tab.UTILITY));
     }
 
     private static final int COLOR_TEXT = 0xfff0f4fa;
@@ -202,7 +223,7 @@ public final class AzureMenuScreen extends Screen {
         context.fill(left + 14, top + 9, left + 40, top + 35, accent);
         context.drawCenteredTextWithShadow(textRenderer, "A", left + 27, top + 18, 0xff0b1018);
         context.drawTextWithShadow(textRenderer, "AZURE CLIENT", left + 48, top + 10, COLOR_TEXT);
-        context.drawTextWithShadow(textRenderer, "v1.2.0  ·  1.21.11  ·  CLIENT MENU", left + 48, top + 22, accent);
+        context.drawTextWithShadow(textRenderer, "v1.2.1  ·  1.21.11  ·  CLIENT MENU", left + 48, top + 22, accent);
 
         // Account chip and close button.
         String account = client != null ? client.getSession().getUsername() : "PLAYER";
@@ -259,7 +280,7 @@ public final class AzureMenuScreen extends Screen {
         }
 
         // Footer.
-        String version = "AZURE CLIENT 1.2.0  ·  1.21.11";
+        String version = "AZURE CLIENT 1.2.1  ·  1.21.11";
         context.drawTextWithShadow(textRenderer, version, left + 14, top + panelH - 18, COLOR_SUBTLE);
         String hint = "R-SHIFT / ESC CLOSE";
         context.drawTextWithShadow(textRenderer, hint, left + panelW - 14 - textRenderer.getWidth(hint),

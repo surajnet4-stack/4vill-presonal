@@ -32,6 +32,13 @@ public final class AzureConfig {
     public boolean showWorldTime = false;
     public boolean showDayCounter = false;
     public boolean showMemory = false;
+    public boolean showKeystrokes = true;
+    public boolean showCps = true;
+    public boolean showArmor = true;
+    public boolean showPotions = true;
+    public boolean showSpeed = false;
+    public boolean showClock = false;
+    public boolean showBlockInfo = false;
     public String hudPreset = "custom";
 
     public static AzureConfig load() {
@@ -82,6 +89,13 @@ public final class AzureConfig {
                 showWorldTime = false;
                 showDayCounter = false;
                 showMemory = false;
+                showKeystrokes = true;
+                showCps = true;
+                showArmor = true;
+                showPotions = true;
+                showSpeed = true;
+                showClock = false;
+                showBlockInfo = true;
             }
             case "bedwars" -> {
                 showWatermark = true;
@@ -95,6 +109,13 @@ public final class AzureConfig {
                 showWorldTime = false;
                 showDayCounter = false;
                 showMemory = false;
+                showKeystrokes = true;
+                showCps = true;
+                showArmor = true;
+                showPotions = true;
+                showSpeed = false;
+                showClock = false;
+                showBlockInfo = false;
             }
             case "smp" -> {
                 showWatermark = true;
@@ -108,6 +129,13 @@ public final class AzureConfig {
                 showWorldTime = true;
                 showDayCounter = true;
                 showMemory = false;
+                showKeystrokes = false;
+                showCps = false;
+                showArmor = false;
+                showPotions = true;
+                showSpeed = false;
+                showClock = true;
+                showBlockInfo = false;
             }
             case "minimal" -> {
                 showWatermark = true;
@@ -121,6 +149,13 @@ public final class AzureConfig {
                 showWorldTime = false;
                 showDayCounter = false;
                 showMemory = false;
+                showKeystrokes = false;
+                showCps = false;
+                showArmor = false;
+                showPotions = false;
+                showSpeed = false;
+                showClock = false;
+                showBlockInfo = false;
             }
             default -> preset = "custom";
         }

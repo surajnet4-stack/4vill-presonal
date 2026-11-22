@@ -277,7 +277,7 @@ public final class AzureMenuScreen extends Screen {
         context.drawTextWithShadow(textRenderer, "AZURE CLIENT", left + 48, top + 10, COLOR_TEXT);
         String modVersion = FabricLoader.getInstance().getModContainer("azureclient")
             .map(container -> container.getMetadata().getVersion().getFriendlyString())
-            .orElse("1.2.0");
+            .orElse("1.2.1");
         context.drawTextWithShadow(textRenderer, "v" + modVersion + "  ·  1.20.x  ·  CLIENT MENU",
             left + 48, top + 22, accent);
 
